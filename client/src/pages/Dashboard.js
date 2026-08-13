@@ -12,8 +12,8 @@ const formatDate = d => {
 };
 
 const categoryColor = {
-  fitness: '#4ade80', learning: '#60a5fa', health: '#f472b6',
-  career: '#a78bfa', personal: '#fb923c', finance: '#34d399', other: '#888'
+  spirtual : '#4ade80', learning: '#60a5fa', health: '#f472b6',
+  career: '#a78bfa', personal: '#fb923c', finance: '#34d399', ot: '#888'
 };
 
 export default function Dashboard() {
@@ -75,8 +75,8 @@ export default function Dashboard() {
   return (
     <div className="page">
       <div className="page-header">
-        <h2>Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {user?.name?.split(' ')[0]} 👋</h2>
-        <p>Here's where you stand today.</p>
+        <h2>Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 18 ? 'Afternoon' : 'Evening'}, {user?.name?.split(' ')[0]} 👋</h2>
+        <p style={{ paddingTop:'3px', fontSize: '1rem', fontWeight: 500 }}>Welcome to growth with sunshine, standout today!</p>
       </div>
 
       {/* Stats */}

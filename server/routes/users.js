@@ -12,6 +12,7 @@ router.get('/:id/stats', protect, async (req, res) => {
     if (!user) return res.status(404).json({ message: 'User not found.' });
 
     const goals = await Goal.find({ owner: req.params.id, isActive: true, isPublic: true });
+    
     const totalCheckIns = goals.reduce((sum, g) => sum + g.checkIns.filter(c => c.completed).length, 0);
 
     res.json({

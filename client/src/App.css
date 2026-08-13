@@ -58,10 +58,12 @@ body {
 .sidebar-logo h1 {
   font-size: 1.2rem;
   font-weight: 700;
-  background: linear-gradient(135deg, var(--accent-light), #c084fc);
+  color:#c084fc;
+  /* background: linear-gradient(135deg, var(--accent-light), #c084fc);
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  -webkit-text-fill-color: transparent; */
 }
+
 .sidebar-logo p { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
 .nav-links { padding: 0 0.75rem; flex: 1; }
 .nav-link {
@@ -87,7 +89,9 @@ body {
   font-weight: 700;
 }
 .sidebar-footer { padding: 1rem 1.5rem; border-top: 1px solid var(--border); }
-.main { overflow-y: auto; }
+.main { overflow-y: full; }
+
+
 
 /* ── Cards ──────────────────────────────────────────────── */
 .card {
@@ -183,7 +187,7 @@ body {
 }
 .avatar-lg { width: 52px; height: 52px; font-size: 1.1rem; }
 
-.page { padding: 2rem; max-width: 900px; }
+.page { padding: 1.5rem; max-width: 100%; }
 .page-header { margin-bottom: 2rem; }
 .page-header h2 { font-size: 1.5rem; font-weight: 700; }
 .page-header p { color: var(--text-muted); margin-top: 0.25rem; font-size: 0.9rem; }
@@ -297,6 +301,7 @@ body {
   font-size: 1.75rem;
   font-weight: 800;
   background: linear-gradient(135deg, var(--accent-light), #c084fc);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }

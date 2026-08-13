@@ -13,9 +13,11 @@ export default function AuthPage() {
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
   const submit = async e => {
+
     e.preventDefault();
     setError('');
     setLoading(true);
+
     try {
       if (tab === 'login') {
         await login(form.email, form.password);
@@ -31,6 +33,7 @@ export default function AuthPage() {
       setLoading(false);
     }
   };
+  
 
   return (
     <div className="auth-page">

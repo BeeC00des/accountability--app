@@ -11,9 +11,12 @@ const NAV = [
 ];
 
 export default function Layout() {
+  
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
+
   const [unread, setUnread] = useState(0);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     API.get('/reminders/unread-count').then(r => setUnread(r.data.count)).catch(() => {});
@@ -23,7 +26,10 @@ export default function Layout() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleLogout = () => { logout(); navigate('/auth'); };
+  const handleLogout = () => { 
+    logout(); 
+    navigate('/auth');
+  };
 
   const initials = user?.name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
 
@@ -31,8 +37,8 @@ export default function Layout() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <h1>🔥 Accountable</h1>
-          <p>Stay consistent together</p>
+          <h1>🔥 Doers Team'26</h1>
+          <p> Let'stay consistent together</p>
         </div>
 
         <nav className="nav-links">
