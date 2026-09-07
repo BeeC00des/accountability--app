@@ -53,6 +53,7 @@ const goalSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
+
   checkIns: [checkInSchema],
   streak: {
     type: Number,
@@ -70,7 +71,8 @@ const goalSchema = new mongoose.Schema({
     type: String,
     default: '🎯'
   }
-}, {
+}, 
+{
   timestamps: true,
   toJSON: { virtuals: true }
 });

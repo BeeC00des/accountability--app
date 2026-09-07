@@ -9,6 +9,8 @@ A full-stack app where friends keep each other accountable with daily reminders,
 - **Check-ins** — Log daily progress with mood tracking and notes
 - **Streaks** — Automatic streak calculation and longest streak history
 - **Friends** — Search by email, send/accept friend requests, remove friends
+- **Mentors** — Search by email, send/accept mentors task, remove mentors/manager
+- **Blockers** — List common distractions and let us block them out.
 - **Reminders** — Send personal reminders to friends, receive automated daily nudges
 - **Dashboard** — Overview of today's goals, friends' activity, and unread reminders
 

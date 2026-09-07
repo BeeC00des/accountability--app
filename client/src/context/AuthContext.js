@@ -5,19 +5,25 @@ const AuthContext = createContext(null);
 
 const API = axios.create({ baseURL: '/api' });
 
-// Attach token to every request
+// Attach token to every request.  
 API.interceptors.request.use(config => {
+
   const token = localStorage.getItem('token');
+
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  
   return config;
+
 });
 
 export const AuthProvider = ({ children }) => {
+
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
+
     if (token) {
       API.get('/auth/me')
         .then(res => setUser(res.data.user))
@@ -29,16 +35,23 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
+
     const res = await API.post('/auth/login', { email, password });
+
     localStorage.setItem('token', res.data.token);
+
     setUser(res.data.user);
     return res.data;
   };
 
   const register = async (name, email, password) => {
+
     const res = await API.post('/auth/register', { name, email, password });
+
     localStorage.setItem('token', res.data.token);
+
     setUser(res.data.user);
+
     return res.data;
   };
 
@@ -47,6 +60,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  // i don't understand this line of updated user
   const updateUser = (updatedUser) => setUser(prev => ({ ...prev, ...updatedUser }));
 
   return (

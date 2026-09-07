@@ -11,7 +11,9 @@ import Profile from './pages/Profile';
 import './App.css';
 
 const ProtectedRoute = ({ children }) => {
+
   const { user, loading } = useAuth();
+  
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
       <div className="spinner" />
@@ -21,9 +23,13 @@ const ProtectedRoute = ({ children }) => {
 };
 
 const PublicRoute = ({ children }) => {
+
   const { user, loading } = useAuth();
+
   if (loading) return null;
-  return !user ? children : <Navigate to="/dashboard" replace />;
+
+  return !user ? children : <Navigate to="/dashboard" replace />;    // i feel it's imperfect and it can be improved upon.
+
 };
 
 function App() {

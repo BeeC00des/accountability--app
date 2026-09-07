@@ -18,12 +18,17 @@ export default function Layout() {
 
   const navigate = useNavigate();
 
+  // The reminder is not working and the count discover why ?
   useEffect(() => {
-    API.get('/reminders/unread-count').then(r => setUnread(r.data.count)).catch(() => {});
+
+    API.get('/reminders/unread-count')
+    .then(r => setUnread(r.data.count)).catch(() => {});
+
     const interval = setInterval(() => {
       API.get('/reminders/unread-count').then(r => setUnread(r.data.count)).catch(() => {});
     }, 60000);
     return () => clearInterval(interval);
+
   }, []);
 
   const handleLogout = () => { 
@@ -38,17 +43,19 @@ export default function Layout() {
       <aside className="sidebar">
         <div className="sidebar-logo">
           <h1>🔥 Doers Team'26</h1>
-          <p> Let'stay consistent together</p>
+          <p> Let's stay consistent together</p>
         </div>
 
         <nav className="nav-links">
           {NAV.map(({ to, label, icon }) => (
-            <NavLink key={to} to={to} className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+            <NavLink key={to} to={to} className={ ({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
               <span>{icon}</span>
               <span>{label}</span>
+              
               {to === '/reminders' && unread > 0 && (
                 <span className="badge">{unread > 9 ? '9+' : unread}</span>
               )}
+
             </NavLink>
           ))}
         </nav>
@@ -58,7 +65,9 @@ export default function Layout() {
             <div className="avatar">{initials}</div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: '0.85rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name}</div>
-              <div className="streak">🔥 {user?.streak || 0} day streak</div>
+              
+              <div className="streak">🔥 {user ?.streak || 0} day streak</div>
+              
             </div>
           </div>
           <button className="btn btn-ghost btn-sm" style={{ width: '100%' }} onClick={handleLogout}>

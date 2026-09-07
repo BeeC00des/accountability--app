@@ -1,11 +1,16 @@
+
+// This page is not working and i can understand some of the functionality.
+
 import React, { useState, useEffect } from 'react';
 import { API } from '../context/AuthContext';
 
 const initials = n => n?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2) || '?';
+
 const formatDate = d => {
   if (!d) return 'Never';
-  const diff = Math.floor((Date.now() - new Date(d)) / 86400000);
-  if (diff === 0) return 'Today'; if (diff === 1) return 'Yesterday';
+    const diff = Math.floor((Date.now() - new Date(d)) / 86400000);
+    if (diff === 0) return 'Today'; 
+    if (diff === 1) return 'Yesterday';
   return `${diff} days ago`;
 };
 
@@ -36,7 +41,8 @@ export default function Friends() {
   const search = async () => {
     if (!searchEmail.trim()) return;
     setSending(true);
-    setSearchError(''); setSearchResult(null);
+    setSearchError(''); 
+    setSearchResult(null);
     try {
       const r = await API.post('/friends/search', { email: searchEmail });
       setSearchResult(r.data);

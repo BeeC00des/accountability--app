@@ -4,10 +4,15 @@ import { useNavigate } from 'react-router-dom';
 
 export default function AuthPage() {
   const { login, register } = useAuth();
+
   const navigate = useNavigate();
+
   const [tab, setTab] = useState('login');
+
   const [form, setForm] = useState({ name: '', email: '', password: '' });
+
   const [error, setError] = useState('');
+
   const [loading, setLoading] = useState(false);
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
@@ -22,13 +27,18 @@ export default function AuthPage() {
       if (tab === 'login') {
         await login(form.email, form.password);
       } else {
-        if (!form.name.trim()) { setError('Name is required.'); setLoading(false); return; }
+        if (!form.name.trim()) { 
+          setError('Name is required.'); 
+          setLoading(false);
+           return; 
+          }
         await register(form.name, form.email, form.password);
       }
       navigate('/dashboard');
     } catch (err) {
       const msg = err.response?.data?.message || err.response?.data?.errors?.[0]?.msg || 'Something went wrong.';
       setError(msg);
+
     } finally {
       setLoading(false);
     }
@@ -114,3 +124,6 @@ export default function AuthPage() {
     </div>
   );
 }
+
+
+// How will i be able recreate or write this on my own.

@@ -4,10 +4,14 @@ import { useAuth, API } from '../context/AuthContext';
 
 const formatDate = d => {
   if (!d) return 'Never';
+  
   const date = new Date(d);
+
   const diff = Math.floor((Date.now() - date) / 86400000);
+
   if (diff === 0) return 'Today';
   if (diff === 1) return 'Yesterday';
+
   return `${diff} days ago`;
 };
 
@@ -25,11 +29,8 @@ export default function Dashboard() {
   const [checkingIn, setCheckingIn] = useState(null);
 
   useEffect(() => {
-    Promise.all([
-      API.get('/goals'),
-      API.get('/friends'),
-      API.get('/reminders')
-    ]).then(([g, f, r]) => {
+    Promise.all([API.get('/goals'), API.get('/friends'), API.get('/reminders')])
+    .then(([g, f, r]) => {
       setGoals(g.data.goals);
       setFriends(f.data.friends);
       setReminders(r.data.reminders.filter(r => !r.isRead).slice(0, 5));
