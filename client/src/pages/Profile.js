@@ -1,131 +1,112 @@
 import React, { useState } from 'react';
 import { useAuth, API } from '../context/AuthContext';
 
-const TIMEZONES = ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'Europe/London', 'Europe/Paris', 'Asia/Tokyo', 'Asia/Kolkata', 'Africa/Lagos', 'Australia/Sydney'];
+const getTimezones = () => {
+  if (typeof Intl.supportedValuesOf === 'function') return Intl.supportedValuesOf('timeZone');
+  return ['UTC', 'Africa/Lagos', 'America/Los_Angeles', 'America/New_York', 'Asia/Kolkata', 'Asia/Tokyo', 'Australia/Sydney', 'Europe/London', 'Europe/Paris'];
+};
+const TIMEZONES = getTimezones();
 
 export default function Profile() {
   const { user, updateUser } = useAuth();
   const [form, setForm] = useState({
     name: user?.name || '',
     reminderTime: user?.reminderTime || '08:00',
-    timezone: user?.timezone || 'UTC',
+    timezone: user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     notificationsEnabled: user?.notificationsEnabled !== false
   });
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
 
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
+  const set = key => event => setForm(formState => ({
+    ...formState,
+    [key]: event.target.type === 'checkbox' ? event.target.checked : event.target.value
+  }));
 
-  const save = async e => {
-    e.preventDefault();
+  const save = async event => {
+    event.preventDefault();
     setSaving(true); setError(''); setSuccess('');
     try {
-      const res = await API.put('/auth/profile', form);
-      updateUser(res.data.user);
-      setSuccess('Profile saved!');
-      setTimeout(() => setSuccess(''), 3000);
+      const response = await API.put('/auth/profile', form);
+      updateUser(response.data.user);
+      setSuccess('Profile saved. Reminder times use your selected time zone.');
+      setTimeout(() => setSuccess(''), 4000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to save.');
+      setError(err.response?.data?.message || err.response?.data?.errors?.[0]?.msg || 'Failed to save your profile.');
     } finally {
       setSaving(false);
     }
   };
 
-  const initials = user?.name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2) || '?';
-  const memberSince = user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
+  const initials = user?.name?.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2) || '?';
+  const memberSince = user?.createdAt ? new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(new Date(user.createdAt)) : '';
 
   return (
-    <div className="page">
+    <div className="page page-narrow">
       <div className="page-header">
         <h2>Profile</h2>
         <p>Manage your account and preferences</p>
       </div>
 
-      {/* Avatar and stats */}
-      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        <div className="avatar avatar-lg" style={{ width: '72px', height: '72px', fontSize: '1.5rem' }}>{initials}</div>
-        <div style={{ flex: 1 }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>{user?.name}</h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{user?.email}</p>
-          {memberSince && <p style={{ color: 'var(--text-dim)', fontSize: '0.8rem', marginTop: '4px' }}>Member since {memberSince}</p>}
+      <section className="card profile-card" aria-label="Account summary">
+        <div className="avatar avatar-lg" aria-hidden="true">{initials}</div>
+        <div className="profile-card-copy">
+          <h3>{user?.name}</h3>
+          <p>{user?.email}</p>
+          {memberSince && <p className="member-since">Member since {memberSince}</p>}
         </div>
-        <div style={{ display: 'flex', gap: '1rem', flexShrink: 0 }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--warning)' }}>🔥 {user?.streak || 0}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Day streak</div>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--accent-light)' }}>{user?.friends?.length || 0}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Friends</div>
-          </div>
-        </div>
-      </div>
+        <div className="profile-stat"><strong>🔥 {user?.streak || 0}</strong><span>Day streak</span></div>
+        <div className="profile-stat"><strong>{user?.friends?.length || 0}</strong><span>Friends</span></div>
+      </section>
 
-      {/* Settings form */}
-      <div className="card">
-        <h3 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '1.5rem' }}>Settings</h3>
-
-        {success && <div className="alert alert-success">{success}</div>}
-        {error && <div className="alert alert-error">{error}</div>}
-
+      <section className="card settings-card">
+        <h3 className="section-title">Account settings</h3>
+        {success && <div className="alert alert-success" role="status">{success}</div>}
+        {error && <div className="alert alert-error" role="alert">{error}</div>}
         <form onSubmit={save}>
           <div className="form-group">
-            <label className="form-label">Display name</label>
-            <input className="form-input" type="text" value={form.name} onChange={set('name')} required />
+            <label className="form-label" htmlFor="display-name">Display name</label>
+            <input id="display-name" className="form-input" type="text" autoComplete="name" maxLength={50} value={form.name} onChange={set('name')} required />
           </div>
-
           <hr className="divider" />
-          <p style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '1rem' }}>Reminder settings</p>
-
-          <div className="grid-2" style={{ gap: '0.75rem', marginBottom: '1.25rem' }}>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Daily reminder time</label>
-              <input className="form-input" type="time" value={form.reminderTime} onChange={set('reminderTime')} />
+          <h4 className="settings-subtitle">Reminder preferences</h4>
+          <div className="grid-2 settings-grid">
+            <div className="form-group">
+              <label className="form-label" htmlFor="reminder-time">Daily reminder time</label>
+              <input id="reminder-time" className="form-input" type="time" value={form.reminderTime} onChange={set('reminderTime')} />
             </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Timezone</label>
-              <select className="form-select" value={form.timezone} onChange={set('timezone')}>
-                {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
+            <div className="form-group">
+              <label className="form-label" htmlFor="timezone">Time zone</label>
+              <select id="timezone" className="form-select" value={form.timezone} onChange={set('timezone')}>
+                {!TIMEZONES.includes(form.timezone) && <option value={form.timezone}>{form.timezone}</option>}
+                {TIMEZONES.map(timezone => <option key={timezone} value={timezone}>{timezone.replaceAll('_', ' ')}</option>)}
               </select>
+              <p className="field-help">Your check-in day and reminder time follow this time zone.</p>
             </div>
           </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', padding: '0.875rem', background: 'var(--bg-surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
-            <input type="checkbox" id="notif" checked={form.notificationsEnabled} onChange={set('notificationsEnabled')} style={{ width: '18px', height: '18px', flexShrink: 0 }} />
-            <div>
-              <label htmlFor="notif" style={{ fontWeight: 500, cursor: 'pointer', display: 'block', fontSize: '0.875rem' }}>Daily reminders</label>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Receive automated daily nudges from your friends</p>
-            </div>
-          </div>
-
-          <button type="submit" className="btn btn-primary" disabled={saving}>
-            {saving ? 'Saving…' : 'Save changes'}
-          </button>
+          <label className="preference-toggle" htmlFor="notifications-enabled">
+            <input id="notifications-enabled" type="checkbox" checked={form.notificationsEnabled} onChange={set('notificationsEnabled')} />
+            <span><strong>Daily reminders</strong><small>Get a private nudge when you have goals to check in on.</small></span>
+          </label>
+          <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
         </form>
-      </div>
+      </section>
 
-      {/* About the app */}
-      <div className="card" style={{ marginTop: '1.5rem' }}>
-        <h3 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>How it works</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      <section className="card about-card">
+        <h3 className="section-title">How it works</h3>
+        <ul className="how-list">
           {[
             ['🎯', 'Set goals', 'Create daily or weekly habits you want to build'],
-            ['✅', 'Check in', 'Log your progress every day to build a streak'],
-            ['🔥', 'Build streaks', 'Consistency is the key — never miss twice'],
-            ['👥', 'Add friends', 'Connect with others for mutual accountability'],
-            ['🔔', 'Send reminders', 'Nudge your friends when they need a push'],
-          ].map(([emoji, title, desc]) => (
-            <div key={title} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>{emoji}</span>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{title}</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{desc}</div>
-              </div>
-            </div>
+            ['✅', 'Check in', 'Log progress in your local day or week'],
+            ['🔥', 'Build streaks', 'Celebrate consistent effort, one period at a time'],
+            ['👥', 'Add friends', 'Connect with people who support your goals'],
+            ['🔔', 'Send reminders', 'Encourage friends when they need a nudge'],
+          ].map(([emoji, title, description]) => (
+            <li key={title}><span aria-hidden="true">{emoji}</span><div><strong>{title}</strong><p>{description}</p></div></li>
           ))}
-        </div>
-      </div>
+        </ul>
+      </section>
     </div>
   );
 }

@@ -1,47 +1,45 @@
 const User = require('../models/User');
 const Reminder = require('../models/Reminder');
 const Goal = require('../models/Goal');
+const { getLocalDateKey, getLocalTimeKey } = require('../utils/timezone');
 
-const sendDailyReminders = async () => {
+const sendDailyReminders = async (now = new Date()) => {
   try {
-    const users = await User.findWithFriends();
-    
-    // For each user, create automated reminders from their friends
-    const usersWithGoals = await User.find({ notificationsEnabled: true }).populate('friends');
+    const users = await User.find({ notificationsEnabled: true }).select('_id timezone reminderTime');
 
-    for (const user of usersWithGoals) {
-      // Check if user hasn't checked in today
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+    for (const user of users) {
+      const timezone = user.timezone || 'UTC';
+      if (getLocalTimeKey(now, timezone) !== (user.reminderTime || '08:00')) continue;
 
-      const checkedInToday = user.lastCheckIn && new Date(user.lastCheckIn) >= today;
+      const localDate = getLocalDateKey(now, timezone);
+      const reminderKey = `${user._id}:${localDate}`;
+      const existingReminder = await Reminder.exists({ reminderKey });
+      if (existingReminder) continue;
 
-      if (!checkedInToday && user.friends.length > 0) {
-        // Pick a random friend to send the reminder "from"
-        const randomFriend = user.friends[Math.floor(Math.random() * user.friends.length)];
+      const goals = await Goal.find({ owner: user._id, isActive: true, frequency: 'daily' }).select('checkIns');
+      if (!goals.length) continue;
 
-        if (randomFriend && randomFriend._id) {
-          const messages = [
-            "Hey! Don't forget to check in on your goals today 💪",
-            "Your goals are waiting for you! Keep the streak going 🔥",
-            "Time to make progress! Check in on your goals today ✨",
-            "Stay consistent! Your daily check-in is waiting 🎯",
-            "Small steps every day = big results. Check in now! 🚀"
-          ];
+      const hasUncheckedGoal = goals.some(goal => !goal.checkIns.some(checkIn =>
+        checkIn.completed && getLocalDateKey(checkIn.date, timezone) === localDate
+      ));
+      if (!hasUncheckedGoal) continue;
 
-          const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-
-          await Reminder.create({
-            from: randomFriend._id,
-            to: user._id,
-            message: randomMessage,
-            type: 'automated'
-          });
-        }
+      try {
+        await Reminder.create({
+          from: user._id,
+          to: user._id,
+          message: "Your daily goals are waiting for you. Take a moment to check in.",
+          type: 'automated',
+          scheduledFor: now,
+          reminderKey
+        });
+      } catch (error) {
+        // A unique key prevents duplicate reminders if multiple app instances run the job.
+        if (error.code !== 11000) throw error;
       }
     }
 
-    console.log('✅ Daily reminders sent');
+    console.log('✅ Local-time daily reminders checked');
   } catch (error) {
     console.error('❌ Error sending daily reminders:', error);
   }

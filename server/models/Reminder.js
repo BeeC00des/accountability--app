@@ -32,6 +32,11 @@ const reminderSchema = new mongoose.Schema({
   },
   scheduledFor: {
     type: Date
+  },
+  reminderKey: {
+    type: String,
+    unique: true,
+    sparse: true
   }
 }, {
   timestamps: true
