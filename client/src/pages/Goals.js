@@ -4,10 +4,41 @@ import { API } from '../context/AuthContext';
 const CATEGORIES = ['fitness', 'learning', 'health', 'career', 'personal', 'finance', 'other'];
 const EMOJIS = ['🎯', '💪', '📚', '🏃', '🧘', '💼', '💰', '🌱', '✍️', '🎨', '🎵', '🍎'];
 const MOODS = [{ label: '🚀 Great', value: 'great' }, { label: '😊 Good', value: 'good' }, { label: '😐 Okay', value: 'okay' }, { label: '😔 Tough', value: 'tough' }];
+const DURATION_PRESETS = [
+  { label: '1 week', value: 7 },
+  { label: '1 month', value: 30 },
+  { label: '3 months', value: 90 },
+  { label: '6 months', value: 180 },
+  { label: '1 year', value: 365 },
+];
 
 const categoryColors = {
   fitness: '#4ade80', learning: '#60a5fa', health: '#f472b6',
   career: '#a78bfa', personal: '#fb923c', finance: '#34d399', other: '#888'
+};
+
+const formatGoalDate = (dateValue) => {
+  if (!dateValue) return 'No end date';
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return 'No end date';
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  }).format(date);
+};
+
+const getDurationLabel = (days) => {
+  const numDays = Number(days) || 30;
+  const matchedPreset = DURATION_PRESETS.find(preset => preset.value === numDays);
+  return matchedPreset ? matchedPreset.label : `${numDays} days`;
+};
+
+const getEndDateFromDays = (days) => {
+  const targetDays = Number(days) || 30;
+  const endDate = new Date();
+  endDate.setDate(endDate.getDate() + targetDays);
+  return endDate;
 };
 
 export default function Goals() {
@@ -23,14 +54,17 @@ export default function Goals() {
   const loadGoals = () => API.get('/goals').then(r => setGoals(r.data.goals)).finally(() => setLoading(false));
   useEffect(() => { loadGoals(); }, []);
 
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
+  const updateFormValue = (key, value) => setForm(f => ({ ...f, [key]: value }));
+  const set = k => e => updateFormValue(k, k === 'targetDays' ? Number(e.target.value) : e.target.value);
+
+  const selectPreset = (days) => updateFormValue('targetDays', Number(days));
 
   const createGoal = async e => {
     e.preventDefault();
     setSaving(true);
     setError('');
     try {
-      await API.post('/goals', form);
+      await API.post('/goals', { ...form, targetDays: Number(form.targetDays) });
       setShowCreate(false);
       setForm({ title: '', description: '', category: 'personal', frequency: 'daily', targetDays: 30, emoji: '🎯', isPublic: false });
       loadGoals();
@@ -96,6 +130,7 @@ export default function Goals() {
             const pct = goal.checkIns.length > 0
               ? Math.round(goal.checkIns.filter(c => c.completed).length / goal.checkIns.length * 100)
               : 0;
+            const endDate = goal.endDate || getEndDateFromDays(goal.targetDays || 30);
             return (
               <div key={goal._id} className="goal-card">
                 <div className="goal-card-header">
@@ -127,10 +162,12 @@ export default function Goals() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                <div className="goal-meta-row">
                   <span>📅 {goal.checkIns.length} check-ins</span>
                   <span>⭐ Best: {goal.longestStreak} days</span>
                   <span>🔄 {goal.frequency}</span>
+                  <span>📆 {getDurationLabel(goal.targetDays || 30)}</span>
+                  <span>⏳ Ends {formatGoalDate(endDate)}</span>
                   {goal.isPublic && <span>👥 Public</span>}
                 </div>
               </div>
@@ -180,13 +217,32 @@ export default function Goals() {
                   </select>
                 </div>
               </div>
+
               <div className="form-group">
-                <label className="form-label">Target days: {form.targetDays}</label>
+                <label className="form-label">Goal duration</label>
+                <div className="duration-presets">
+                  {DURATION_PRESETS.map(preset => (
+                    <button
+                      key={preset.value}
+                      type="button"
+                      className={`duration-chip ${form.targetDays === preset.value ? 'selected' : ''}`}
+                      onClick={() => selectPreset(preset.value)}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="duration-summary">
+                  <span>{getDurationLabel(form.targetDays)}</span>
+                  <span>Ends {formatGoalDate(getEndDateFromDays(form.targetDays))}</span>
+                </div>
+                <label className="form-label range-label">Custom range: {form.targetDays} days</label>
                 <input type="range" min={7} max={365} value={form.targetDays} onChange={set('targetDays')} style={{ width: '100%' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                   <span>7 days</span><span>1 year</span>
                 </div>
               </div>
+
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
                 <input type="checkbox" id="public" checked={form.isPublic} onChange={e => setForm(f => ({ ...f, isPublic: e.target.checked }))} />
                 <label htmlFor="public" style={{ fontSize: '0.875rem', cursor: 'pointer' }}>Share with friends (public)</label>
