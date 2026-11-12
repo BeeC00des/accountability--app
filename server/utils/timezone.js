@@ -3,7 +3,7 @@ const partsForDate = (date, timeZone, options) => {
   return Object.fromEntries(formatter.formatToParts(date).map(({ type, value }) => [type, value]));
 };
 
-const isValidTimeZone = (timeZone) => {
+const isValidTimeZone = timeZone => {
   try {
     new Intl.DateTimeFormat('en-US', { timeZone }).format(new Date());
     return true;
@@ -13,28 +13,22 @@ const isValidTimeZone = (timeZone) => {
 };
 
 const getLocalDateKey = (date, timeZone = 'UTC') => {
-  const safeTimeZone = isValidTimeZone(timeZone) ? timeZone : 'UTC';
-  const parts = partsForDate(new Date(date), safeTimeZone, {
-    year: 'numeric', month: '2-digit', day: '2-digit'
-  });
+  const zone = isValidTimeZone(timeZone) ? timeZone : 'UTC';
+  const parts = partsForDate(new Date(date), zone, { year: 'numeric', month: '2-digit', day: '2-digit' });
   return `${parts.year}-${parts.month}-${parts.day}`;
 };
 
 const getLocalTimeKey = (date, timeZone = 'UTC') => {
-  const safeTimeZone = isValidTimeZone(timeZone) ? timeZone : 'UTC';
-  const parts = partsForDate(new Date(date), safeTimeZone, {
-    hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
-  });
+  const zone = isValidTimeZone(timeZone) ? timeZone : 'UTC';
+  const parts = partsForDate(new Date(date), zone, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
   return `${parts.hour}:${parts.minute}`;
 };
 
 const getPeriodKey = (date, timeZone = 'UTC', frequency = 'daily') => {
   const dateKey = getLocalDateKey(date, timeZone);
   if (frequency !== 'weekly') return dateKey;
-
   const localDate = new Date(`${dateKey}T00:00:00.000Z`);
-  const dayOfWeek = localDate.getUTCDay();
-  localDate.setUTCDate(localDate.getUTCDate() - ((dayOfWeek + 6) % 7));
+  localDate.setUTCDate(localDate.getUTCDate() - ((localDate.getUTCDay() + 6) % 7));
   return localDate.toISOString().slice(0, 10);
 };
 

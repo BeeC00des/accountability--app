@@ -1,11 +1,14 @@
 const express = require('express');
+const { body, param, validationResult } = require('express-validator');
+const mongoose = require('mongoose');
 const Reminder = require('../models/Reminder');
 const User = require('../models/User');
+const Goal = require('../models/Goal');
 const { protect } = require('../middleware/auth');
 
 const router = express.Router();
+const DEFAULT_MESSAGE = "Hey! Don't forget to check in on your goals today 💪";
 
-// GET /api/reminders - Get all reminders for current user
 router.get('/', protect, async (req, res) => {
   try {
     const reminders = await Reminder.find({ to: req.user._id })
@@ -15,66 +18,83 @@ router.get('/', protect, async (req, res) => {
       .limit(50);
     res.json({ reminders });
   } catch (error) {
-    res.status(500).json({ message: 'Server error.' });
+    console.error('List reminders error:', error);
+    res.status(500).json({ message: 'Could not load reminders.' });
   }
 });
 
-// GET /api/reminders/unread-count
 router.get('/unread-count', protect, async (req, res) => {
   try {
     const count = await Reminder.countDocuments({ to: req.user._id, isRead: false });
     res.json({ count });
   } catch (error) {
-    res.status(500).json({ message: 'Server error.' });
+    console.error('Unread reminder count error:', error);
+    res.status(500).json({ message: 'Could not load unread reminder count.' });
   }
 });
 
-// POST /api/reminders - Send a reminder to a friend
-router.post('/', protect, async (req, res) => {
+router.post('/', protect, [
+  body('to').isMongoId().withMessage('A valid recipient is required.'),
+  body('message').optional().isString().trim().isLength({ min: 1, max: 300 }),
+  body('goalId').optional({ values: 'falsy' }).isMongoId()
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
   try {
-    const { to, goalId, message } = req.body;
-    if (!to) return res.status(400).json({ message: 'Recipient is required.' });
+    const { to, goalId } = req.body;
+    const message = (req.body.message || DEFAULT_MESSAGE).trim();
+    if (to === req.user._id.toString()) return res.status(400).json({ message: 'You cannot send a reminder to yourself.' });
 
-    const currentUser = await User.findById(req.user._id);
-    if (!currentUser.friends.map(f => f.toString()).includes(to)) {
-      return res.status(403).json({ message: 'You can only send reminders to friends.' });
+    const user = await User.findById(req.user._id).select('friends');
+    const isFriend = user.friends.some(friendId => friendId.equals(to));
+    if (!isFriend) return res.status(403).json({ message: 'You can only send reminders to accepted friends.' });
+
+    let goal;
+    if (goalId) {
+      goal = await Goal.findOne({ _id: goalId, owner: req.user._id, isActive: true }).select('_id');
+      if (!goal) return res.status(404).json({ message: 'Goal not found.' });
     }
 
     const reminder = await Reminder.create({
       from: req.user._id,
       to,
-      goal: goalId || undefined,
-      message: message || "Hey! Don't forget to check in on your goals today 💪",
+      goal: goal?._id,
+      message,
       type: 'manual'
     });
-
-    const populated = await reminder.populate('from', 'name email');
-    res.status(201).json({ message: 'Reminder sent!', reminder: populated });
+    await reminder.populate('from', 'name email');
+    if (goal) await reminder.populate('goal', 'title emoji');
+    res.status(201).json({ message: 'Reminder sent!', reminder });
   } catch (error) {
-    res.status(500).json({ message: 'Server error.' });
+    console.error('Send reminder error:', error);
+    res.status(500).json({ message: 'Could not send reminder.' });
   }
 });
 
-// PUT /api/reminders/:id/read - Mark as read
-router.put('/:id/read', protect, async (req, res) => {
+router.put('/:id/read', protect, [param('id').isMongoId()], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
   try {
-    await Reminder.findOneAndUpdate(
+    const reminder = await Reminder.findOneAndUpdate(
       { _id: req.params.id, to: req.user._id },
-      { isRead: true }
+      { isRead: true },
+      { new: true }
     );
-    res.json({ message: 'Marked as read.' });
+    if (!reminder) return res.status(404).json({ message: 'Reminder not found.' });
+    res.json({ message: 'Marked as read.', reminder });
   } catch (error) {
-    res.status(500).json({ message: 'Server error.' });
+    console.error('Mark reminder read error:', error);
+    res.status(500).json({ message: 'Could not update reminder.' });
   }
 });
 
-// PUT /api/reminders/read-all - Mark all as read
 router.put('/read-all', protect, async (req, res) => {
   try {
-    await Reminder.updateMany({ to: req.user._id, isRead: false }, { isRead: true });
-    res.json({ message: 'All marked as read.' });
+    const result = await Reminder.updateMany({ to: req.user._id, isRead: false }, { $set: { isRead: true } });
+    res.json({ message: 'All reminders marked as read.', updated: result.modifiedCount });
   } catch (error) {
-    res.status(500).json({ message: 'Server error.' });
+    console.error('Mark all reminders read error:', error);
+    res.status(500).json({ message: 'Could not update reminders.' });
   }
 });
 
