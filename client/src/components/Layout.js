@@ -10,10 +10,26 @@ const NAV = [
   { to: '/profile', label: 'Profile', icon: '⚙' },
 ];
 
+const getInitialTheme = () => {
+  try {
+    const stored = window.localStorage.getItem('accountable-theme');
+    if (stored === 'light' || stored === 'dark') return stored;
+  } catch (error) {
+    // Storage can be disabled; use a stable light default in that case.
+  }
+  return 'light';
+};
+
 export default function Layout() {
   const { user, logout } = useAuth();
   const [unread, setUnread] = useState(0);
+  const [theme, setTheme] = useState(getInitialTheme);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try { window.localStorage.setItem('accountable-theme', theme); } catch (error) { /* Theme still applies for this session. */ }
+  }, [theme]);
 
   useEffect(() => {
     let mounted = true;
@@ -55,6 +71,16 @@ export default function Layout() {
               <div className="streak">🔥 {user?.streak || 0} day streak</div>
             </div>
           </div>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm theme-toggle"
+            onClick={() => setTheme(current => current === 'light' ? 'dark' : 'light')}
+            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} appearance`}
+            aria-pressed={theme === 'dark'}
+          >
+            <span aria-hidden="true">{theme === 'light' ? '◐' : '☼'}</span>
+            {theme === 'light' ? 'Dark appearance' : 'Light appearance'}
+          </button>
           <button className="btn btn-ghost btn-sm sign-out" onClick={handleLogout}>Sign out</button>
         </div>
       </aside>
