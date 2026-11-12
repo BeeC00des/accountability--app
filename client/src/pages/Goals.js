@@ -17,6 +17,8 @@ const categoryColors = {
   career: '#a78bfa', personal: '#fb923c', finance: '#34d399', other: '#888'
 };
 
+const getCurrentYear = () => new Date().getFullYear();
+
 const formatGoalDate = (dateValue) => {
   if (!dateValue) return 'No end date';
   const date = new Date(dateValue);
@@ -46,7 +48,18 @@ export default function Goals() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [checkInModal, setCheckInModal] = useState(null);
-  const [form, setForm] = useState({ title: '', description: '', category: 'personal', frequency: 'daily', targetDays: 30, emoji: '🎯', isPublic: false });
+  const [newTodoText, setNewTodoText] = useState('');
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    category: 'personal',
+    frequency: 'daily',
+    targetDays: 30,
+    year: getCurrentYear(),
+    emoji: '🎯',
+    isPublic: false,
+    todos: []
+  });
   const [checkInForm, setCheckInForm] = useState({ completed: true, note: '', mood: 'good' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -55,18 +68,48 @@ export default function Goals() {
   useEffect(() => { loadGoals(); }, []);
 
   const updateFormValue = (key, value) => setForm(f => ({ ...f, [key]: value }));
-  const set = k => e => updateFormValue(k, k === 'targetDays' ? Number(e.target.value) : e.target.value);
+  const set = k => e => updateFormValue(k, ['targetDays', 'year'].includes(k) ? Number(e.target.value) : e.target.value);
 
   const selectPreset = (days) => updateFormValue('targetDays', Number(days));
+
+  const addTodo = () => {
+    const draft = newTodoText.trim();
+    if (!draft) return;
+    setForm(f => ({
+      ...f,
+      todos: [...(f.todos || []), { title: draft, done: false }]
+    }));
+    setNewTodoText('');
+  };
+
+  const removeTodo = (index) => {
+    setForm(f => ({ ...f, todos: (f.todos || []).filter((_, todoIndex) => todoIndex !== index) }));
+  };
 
   const createGoal = async e => {
     e.preventDefault();
     setSaving(true);
     setError('');
     try {
-      await API.post('/goals', { ...form, targetDays: Number(form.targetDays) });
+      await API.post('/goals', {
+        ...form,
+        targetDays: Number(form.targetDays),
+        year: Number(form.year),
+        todos: (form.todos || []).map(todo => ({ ...todo, title: String(todo.title || '').trim() })).filter(todo => todo.title)
+      });
       setShowCreate(false);
-      setForm({ title: '', description: '', category: 'personal', frequency: 'daily', targetDays: 30, emoji: '🎯', isPublic: false });
+      setForm({
+        title: '',
+        description: '',
+        category: 'personal',
+        frequency: 'daily',
+        targetDays: 30,
+        year: getCurrentYear(),
+        emoji: '🎯',
+        isPublic: false,
+        todos: []
+      });
+      setNewTodoText('');
       loadGoals();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create goal.');
@@ -96,9 +139,26 @@ export default function Goals() {
     loadGoals();
   };
 
+  const toggleTodo = async (goalId, todoIndex) => {
+    const goal = goals.find(item => item._id === goalId);
+    if (!goal) return;
+
+    const nextTodos = (goal.todos || []).map((todo, index) => {
+      if (index !== todoIndex) return todo;
+      return { ...todo, done: !todo.done };
+    });
+
+    try {
+      const response = await API.put(`/goals/${goalId}`, { ...goal, todos: nextTodos });
+      setGoals(current => current.map(item => item._id === goalId ? response.data.goal : item));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const isCheckedToday = (goal) => {
     const today = new Date(); today.setHours(0,0,0,0);
-    return goal.checkIns.some(c => {
+    return (goal.checkIns || []).some(c => {
       const d = new Date(c.date); d.setHours(0,0,0,0);
       return d.getTime() === today.getTime() && c.completed;
     });
@@ -127,8 +187,8 @@ export default function Goals() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {goals.map(goal => {
             const done = isCheckedToday(goal);
-            const pct = goal.checkIns.length > 0
-              ? Math.round(goal.checkIns.filter(c => c.completed).length / goal.checkIns.length * 100)
+            const pct = (goal.checkIns || []).length > 0
+              ? Math.round((goal.checkIns || []).filter(c => c.completed).length / (goal.checkIns || []).length * 100)
               : 0;
             const endDate = goal.endDate || getEndDateFromDays(goal.targetDays || 30);
             return (
@@ -140,6 +200,7 @@ export default function Goals() {
                     {goal.description && <p>{goal.description}</p>}
                     <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginTop: '4px', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '0.75rem', color: categoryColors[goal.category], fontWeight: 500, textTransform: 'capitalize' }}>{goal.category}</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>📅 {goal.year || getCurrentYear()}</span>
                       {goal.streak > 0 && <span className="streak" style={{ fontSize: '0.75rem' }}>🔥 {goal.streak} day streak</span>}
                       {done && <span style={{ fontSize: '0.75rem', color: 'var(--success)' }}>✓ Done today</span>}
                     </div>
@@ -162,9 +223,23 @@ export default function Goals() {
                   </div>
                 </div>
 
+                {(goal.todos || []).length > 0 && (
+                  <div style={{ marginTop: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)' }}>Yearly to-dos</div>
+                    {goal.todos.map((todo, index) => (
+                      <label key={todo._id || `${goal._id}-${index}`} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.9rem' }}>
+                        <input type="checkbox" checked={Boolean(todo.done)} onChange={() => toggleTodo(goal._id, index)} />
+                        <span style={{ textDecoration: todo.done ? 'line-through' : 'none', color: todo.done ? 'var(--text-muted)' : 'var(--text)' }}>
+                          {todo.title}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+
                 <div className="goal-meta-row">
-                  <span>📅 {goal.checkIns.length} check-ins</span>
-                  <span>⭐ Best: {goal.longestStreak} days</span>
+                  <span>📅 {(goal.checkIns || []).length} check-ins</span>
+                  <span>⭐ Best: {goal.longestStreak || 0} days</span>
                   <span>🔄 {goal.frequency}</span>
                   <span>📆 {getDurationLabel(goal.targetDays || 30)}</span>
                   <span>⏳ Ends {formatGoalDate(endDate)}</span>
@@ -176,7 +251,6 @@ export default function Goals() {
         </div>
       )}
 
-      {/* Create goal modal */}
       {showCreate && (
         <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setShowCreate(false)}>
           <div className="modal">
@@ -198,10 +272,12 @@ export default function Goals() {
                   </select>
                 </div>
               </div>
+
               <div className="form-group">
                 <label className="form-label">Description (optional)</label>
                 <textarea className="form-textarea" value={form.description} onChange={set('description')} placeholder="Why this goal matters to you…" rows={2} />
               </div>
+
               <div className="grid-2" style={{ gap: '0.75rem', marginBottom: '1.25rem' }}>
                 <div>
                   <label className="form-label">Category</label>
@@ -210,10 +286,26 @@ export default function Goals() {
                   </select>
                 </div>
                 <div>
+                  <label className="form-label">Year</label>
+                  <input className="form-input" type="number" min={2020} max={2100} value={form.year} onChange={set('year')} />
+                </div>
+              </div>
+
+              <div className="grid-2" style={{ gap: '0.75rem', marginBottom: '1.25rem' }}>
+                <div>
                   <label className="form-label">Frequency</label>
                   <select className="form-select" value={form.frequency} onChange={set('frequency')}>
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Duration</label>
+                  <select className="form-select" value={form.targetDays} onChange={set('targetDays')}>
+                    {DURATION_PRESETS.map(preset => (
+                      <option key={preset.value} value={preset.value}>{preset.label}</option>
+                    ))}
+                    <option value={3650}>Custom</option>
                   </select>
                 </div>
               </div>
@@ -243,6 +335,32 @@ export default function Goals() {
                 </div>
               </div>
 
+              <div className="form-group">
+                <label className="form-label">Yearly to-dos</label>
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <input
+                    className="form-input"
+                    value={newTodoText}
+                    onChange={e => setNewTodoText(e.target.value)}
+                    placeholder="Add a task for this year"
+                  />
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={addTodo}>Add</button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {(form.todos || []).length === 0 ? (
+                    <small style={{ color: 'var(--text-muted)' }}>No to-dos yet. Add tasks to keep your year on track.</small>
+                  ) : (
+                    (form.todos || []).map((todo, index) => (
+                      <div key={`${todo.title}-${index}`} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ flex: 1 }}>{todo.title}</span>
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeTodo(index)}>Remove</button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
                 <input type="checkbox" id="public" checked={form.isPublic} onChange={e => setForm(f => ({ ...f, isPublic: e.target.checked }))} />
                 <label htmlFor="public" style={{ fontSize: '0.875rem', cursor: 'pointer' }}>Share with friends (public)</label>
@@ -258,7 +376,6 @@ export default function Goals() {
         </div>
       )}
 
-      {/* Check-in modal */}
       {checkInModal && (
         <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setCheckInModal(null)}>
           <div className="modal">

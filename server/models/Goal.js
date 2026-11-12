@@ -7,6 +7,27 @@ const checkInSchema = new mongoose.Schema({
   mood: { type: String, enum: ['great', 'good', 'okay', 'tough', ''], default: '' }
 });
 
+const todoItemSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: [true, 'Todo title is required'],
+    trim: true,
+    maxlength: [200, 'Todo title cannot exceed 200 characters']
+  },
+  done: {
+    type: Boolean,
+    default: false
+  },
+  dueDate: {
+    type: Date
+  },
+  notes: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'Todo notes cannot exceed 500 characters']
+  }
+}, { timestamps: true });
+
 const goalSchema = new mongoose.Schema({
   owner: {
     type: mongoose.Schema.Types.ObjectId,
@@ -34,6 +55,10 @@ const goalSchema = new mongoose.Schema({
     enum: ['daily', 'weekly'],
     default: 'daily'
   },
+  year: {
+    type: Number,
+    default: () => new Date().getFullYear()
+  },
   targetDays: {
     type: Number,
     default: 30
@@ -53,7 +78,7 @@ const goalSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
-
+  todos: [todoItemSchema],
   checkIns: [checkInSchema],
   streak: {
     type: Number,
@@ -71,8 +96,7 @@ const goalSchema = new mongoose.Schema({
     type: String,
     default: '🎯'
   }
-}, 
-{
+}, {
   timestamps: true,
   toJSON: { virtuals: true }
 });
