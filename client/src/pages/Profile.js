@@ -1,112 +1,179 @@
-import React, { useState } from 'react';
-import { useAuth, API } from '../context/AuthContext';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { API, useAuth } from '../context/AuthContext';
+import { useApp } from '../context/AppContext';
+import { Avatar, Icon, Switch, TextField } from '../components/ui';
+import { ChangePasswordDialog, EditProfileDialog } from '../components/ProfileDialogs';
+import AccentDialog from '../components/AccentDialog';
+import { ACCENT_PRESETS, accentHex, useTheme } from '../context/ThemeContext';
+import { apiError, formatDate, plural } from '../lib/format';
 
-const getTimezones = () => {
-  if (typeof Intl.supportedValuesOf === 'function') return Intl.supportedValuesOf('timeZone');
-  return ['UTC', 'Africa/Lagos', 'America/Los_Angeles', 'America/New_York', 'Asia/Kolkata', 'Asia/Tokyo', 'Australia/Sydney', 'Europe/London', 'Europe/Paris'];
-};
-const TIMEZONES = getTimezones();
+const TIMEZONES = typeof Intl.supportedValuesOf === 'function'
+  ? Intl.supportedValuesOf('timeZone')
+  : ['UTC', 'Africa/Lagos', 'America/Los_Angeles', 'America/New_York', 'Asia/Kolkata', 'Asia/Tokyo', 'Australia/Sydney', 'Europe/London', 'Europe/Paris'];
+const browserTimezone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return 'UTC'; } };
+
+const HOW_IT_WORKS = [
+  ['flag', 'Set a goal', 'Pick a daily or weekly rhythm and break it into steps.'],
+  ['check_circle', 'Check in', 'One tap each day or week. Notes and mood are private.'],
+  ['local_fire_department', 'Build streaks', 'Every period you show up adds to your streak.'],
+  ['group', 'Share with friends', 'Friends see shared goals and can nudge or cheer you.'],
+  ['notifications', 'Get reminded', 'A daily reminder arrives if a goal still needs a check-in.']
+];
 
 export default function Profile() {
-  const { user, updateUser } = useAuth();
-  const [form, setForm] = useState({
-    name: user?.name || '',
+  const { user, updateUser, logout } = useAuth();
+  const { notify } = useApp();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [params, setParams] = useSearchParams();
+  const [dialog, setDialog] = useState(null); // 'profile' | 'password' | 'accent'
+  const { accent } = useTheme();
+  const [reminders, setReminders] = useState({
     reminderTime: user?.reminderTime || '08:00',
-    timezone: user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    timezone: user?.timezone || browserTimezone() || 'UTC',
     notificationsEnabled: user?.notificationsEnabled !== false
   });
   const [saving, setSaving] = useState(false);
-  const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
 
-  const set = key => event => setForm(formState => ({
-    ...formState,
-    [key]: event.target.type === 'checkbox' ? event.target.checked : event.target.value
-  }));
+  useEffect(() => {
+    if (location.hash === '#settings') document.getElementById('settings')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [location.hash]);
 
-  const save = async event => {
+  // /profile?edit=1 (from the account menu) opens the editor.
+  useEffect(() => {
+    if (params.get('edit')) { setDialog('profile'); setParams({}, { replace: true }); }
+  }, [params, setParams]);
+
+  const set = (key, value) => setReminders(current => ({ ...current, [key]: value }));
+  const detected = browserTimezone();
+  const dirty = reminders.reminderTime !== (user?.reminderTime || '08:00')
+    || reminders.timezone !== (user?.timezone || 'UTC')
+    || reminders.notificationsEnabled !== (user?.notificationsEnabled !== false);
+
+  const saveReminders = async event => {
     event.preventDefault();
-    setSaving(true); setError(''); setSuccess('');
+    setSaving(true);
+    setError('');
     try {
-      const response = await API.put('/auth/profile', form);
-      updateUser(response.data.user);
-      setSuccess('Profile saved. Reminder times use your selected time zone.');
-      setTimeout(() => setSuccess(''), 4000);
-    } catch (err) {
-      setError(err.response?.data?.message || err.response?.data?.errors?.[0]?.msg || 'Failed to save your profile.');
+      const response = await API.put('/auth/profile', reminders);
+      const { friends, friendRequests, ...rest } = response.data.user;
+      updateUser(rest);
+      try { window.localStorage.setItem('accountable-reminder-set', '1'); } catch { /* optional */ }
+      notify('Reminder settings saved');
+    } catch (saveError) {
+      setError(apiError(saveError, 'Could not save your settings.'));
     } finally {
       setSaving(false);
     }
   };
 
-  const initials = user?.name?.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2) || '?';
-  const memberSince = user?.createdAt ? new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(new Date(user.createdAt)) : '';
+  const friendCount = user?.friends?.length || 0;
+  const accountRows = [
+    { icon: 'badge', label: 'Name', value: user?.name, onClick: () => setDialog('profile') },
+    { icon: 'mail', label: 'Email', value: user?.email, onClick: () => setDialog('profile') },
+    { icon: 'notes', label: 'Bio', value: user?.bio || 'Add a short bio', muted: !user?.bio, onClick: () => setDialog('profile') },
+    { icon: 'lock', label: 'Password', value: '••••••••', onClick: () => setDialog('password') },
+    { icon: 'palette', label: 'Theme color', value: ACCENT_PRESETS.find(preset => preset.value === accent)?.label || accentHex(accent).toUpperCase(), swatch: accentHex(accent), onClick: () => setDialog('accent') }
+  ];
 
   return (
     <div className="page page-narrow">
-      <div className="page-header">
-        <h2>Profile</h2>
-        <p>Manage your account and preferences</p>
-      </div>
-
-      <section className="card profile-card" aria-label="Account summary">
-        <div className="avatar avatar-lg" aria-hidden="true">{initials}</div>
-        <div className="profile-card-copy">
-          <h3>{user?.name}</h3>
-          <p>{user?.email}</p>
-          {memberSince && <p className="member-since">Member since {memberSince}</p>}
+      <header className="page-header">
+        <div>
+          <h1 className="headline-medium">Profile</h1>
+          <p className="body-large text-variant">Your account and reminder preferences.</p>
         </div>
-        <div className="profile-stat"><strong>🔥 {user?.streak || 0}</strong><span>Day streak</span></div>
-        <div className="profile-stat"><strong>{user?.friends?.length || 0}</strong><span>Friends</span></div>
+        <button type="button" className="btn btn-filled state-layer" onClick={() => setDialog('profile')}><Icon name="edit" />Edit profile</button>
+      </header>
+
+      <section className="card card-filled profile-hero" aria-label="Account summary">
+        <button type="button" className="profile-photo state-layer" onClick={() => setDialog('profile')} aria-label={user?.avatar ? 'Change profile photo' : 'Add profile photo'}>
+          <Avatar name={user?.name} src={user?.avatar} size="xl" />
+          <span className="photo-editor-badge" aria-hidden="true"><Icon name="photo_camera" filled /></span>
+        </button>
+        <div className="list-item-content profile-identity">
+          <h2 className="title-large">{user?.name}</h2>
+          {user?.bio
+            ? <p className="body-medium profile-bio">{user.bio}</p>
+            : <button type="button" className="link-btn body-medium" onClick={() => setDialog('profile')}>Add a short bio</button>}
+          <p className="body-small text-variant">{user?.email}{user?.createdAt && ` · Member since ${formatDate(user.createdAt, { month: 'long', year: 'numeric' })}`}</p>
+        </div>
+        <div className="profile-stats">
+          <div><strong className="title-large">🔥 {user?.streak || 0}</strong><span className="body-small text-variant">Day streak</span></div>
+          <div><strong className="title-large">{friendCount}</strong><span className="body-small text-variant">{friendCount === 1 ? 'Friend' : 'Friends'}</span></div>
+        </div>
       </section>
 
-      <section className="card settings-card">
-        <h3 className="section-title">Account settings</h3>
-        {success && <div className="alert alert-success" role="status">{success}</div>}
-        {error && <div className="alert alert-error" role="alert">{error}</div>}
-        <form onSubmit={save}>
-          <div className="form-group">
-            <label className="form-label" htmlFor="display-name">Display name</label>
-            <input id="display-name" className="form-input" type="text" autoComplete="name" maxLength={50} value={form.name} onChange={set('name')} required />
-          </div>
-          <hr className="divider" />
-          <h4 className="settings-subtitle">Reminder preferences</h4>
-          <div className="grid-2 settings-grid">
-            <div className="form-group">
-              <label className="form-label" htmlFor="reminder-time">Daily reminder time</label>
-              <input id="reminder-time" className="form-input" type="time" value={form.reminderTime} onChange={set('reminderTime')} />
-            </div>
-            <div className="form-group">
-              <label className="form-label" htmlFor="timezone">Time zone</label>
-              <select id="timezone" className="form-select" value={form.timezone} onChange={set('timezone')}>
-                {!TIMEZONES.includes(form.timezone) && <option value={form.timezone}>{form.timezone}</option>}
-                {TIMEZONES.map(timezone => <option key={timezone} value={timezone}>{timezone.replaceAll('_', ' ')}</option>)}
-              </select>
-              <p className="field-help">Your check-in day and reminder time follow this time zone.</p>
-            </div>
-          </div>
-          <label className="preference-toggle" htmlFor="notifications-enabled">
-            <input id="notifications-enabled" type="checkbox" checked={form.notificationsEnabled} onChange={set('notificationsEnabled')} />
-            <span><strong>Daily reminders</strong><small>Get a private nudge when you have goals to check in on.</small></span>
-          </label>
-          <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
-        </form>
-      </section>
-
-      <section className="card about-card">
-        <h3 className="section-title">How it works</h3>
-        <ul className="how-list">
-          {[
-            ['🎯', 'Set goals', 'Create daily or weekly habits you want to build'],
-            ['✅', 'Check in', 'Log progress in your local day or week'],
-            ['🔥', 'Build streaks', 'Celebrate consistent effort, one period at a time'],
-            ['👥', 'Add friends', 'Connect with people who support your goals'],
-            ['🔔', 'Send reminders', 'Encourage friends when they need a nudge'],
-          ].map(([emoji, title, description]) => (
-            <li key={title}><span aria-hidden="true">{emoji}</span><div><strong>{title}</strong><p>{description}</p></div></li>
+      <section className="card account-card" aria-labelledby="account-title">
+        <h2 id="account-title" className="title-medium card-title">Account</h2>
+        <ul className="settings-list" role="list">
+          {accountRows.map(row => (
+            <li key={row.label}>
+              <button type="button" className="settings-row state-layer" onClick={row.onClick} aria-label={`Edit ${row.label.toLowerCase()}`}>
+                <span className="settings-row-icon" aria-hidden="true"><Icon name={row.icon} /></span>
+                <span className="settings-row-label body-large">{row.label}</span>
+                <span className={`settings-row-value body-medium${row.muted ? ' muted' : ''}`}>{row.swatch && <span className="row-swatch" style={{ background: row.swatch }} aria-hidden="true" />}{row.value}</span>
+                <Icon name="chevron_right" className="text-variant" />
+              </button>
+            </li>
           ))}
         </ul>
       </section>
+
+      <form className="card settings-card" id="settings" onSubmit={saveReminders} noValidate>
+        <h2 className="title-medium card-title">Daily reminder</h2>
+        {error && <p className="inline-error" role="alert"><Icon name="error" />{error}</p>}
+        <label className="setting-row" htmlFor="notifications-enabled">
+          <Icon name="notifications_active" className="text-variant" />
+          <span className="setting-row-text">
+            <span className="body-large">Remind me to check in</span>
+            <span className="body-medium text-variant">Only sent when a goal still needs a check-in.</span>
+          </span>
+          <Switch id="notifications-enabled" checked={reminders.notificationsEnabled} onChange={value => set('notificationsEnabled', value)} />
+        </label>
+        <div className="field-row">
+          <TextField label="Reminder time" type="time" value={reminders.reminderTime} onChange={event => set('reminderTime', event.target.value)} disabled={!reminders.notificationsEnabled} />
+          <TextField
+            as="select"
+            label="Time zone"
+            value={reminders.timezone}
+            onChange={event => set('timezone', event.target.value)}
+            help={reminders.timezone !== detected && detected ? <>Your device is on {detected.replaceAll('_', ' ')}. <button type="button" className="link-btn" onClick={() => set('timezone', detected)}>Use it</button></> : 'Your day and reminder follow this zone.'}
+          >
+            {!TIMEZONES.includes(reminders.timezone) && <option value={reminders.timezone}>{reminders.timezone}</option>}
+            {TIMEZONES.map(zone => <option key={zone} value={zone}>{zone.replaceAll('_', ' ')}</option>)}
+          </TextField>
+        </div>
+        <div className="form-actions">
+          <button type="submit" className="btn btn-filled state-layer" disabled={saving || !dirty}>{saving ? 'Saving…' : dirty ? 'Save changes' : 'Saved'}</button>
+        </div>
+      </form>
+
+      <section className="card" aria-labelledby="how-title">
+        <h2 id="how-title" className="title-medium card-title">How Accountable works</h2>
+        <ol className="list how-list" role="list">
+          {HOW_IT_WORKS.map(([icon, title, text], index) => (
+            <li key={title} className="list-item">
+              <span className="how-step" aria-hidden="true"><Icon name={icon} /></span>
+              <span className="list-item-content">
+                <span className="list-item-headline">{index + 1}. {title}</span>
+                <span className="list-item-supporting">{text}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <div className="form-actions sign-out-row">
+        <span className="body-small text-variant">{plural(friendCount, 'friend')} in your circle</span>
+        <button type="button" className="btn btn-outlined btn-danger state-layer" onClick={() => { logout(); navigate('/auth'); }}><Icon name="logout" />Sign out</button>
+      </div>
+
+      {dialog === 'profile' && <EditProfileDialog onClose={() => setDialog(null)} />}
+      {dialog === 'password' && <ChangePasswordDialog onClose={() => setDialog(null)} />}
+      {dialog === 'accent' && <AccentDialog onClose={() => setDialog(null)} />}
     </div>
   );
 }

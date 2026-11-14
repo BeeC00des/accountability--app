@@ -23,7 +23,7 @@ const reminderSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['manual', 'automated', 'encouragement'],
+    enum: ['manual', 'automated', 'encouragement', 'challenge', 'system'],
     default: 'manual'
   },
   isRead: {
@@ -41,5 +41,8 @@ const reminderSchema = new mongoose.Schema({
 }, {
   timestamps: true
 });
+
+reminderSchema.index({ to: 1, createdAt: -1 });
+reminderSchema.index({ from: 1, to: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Reminder', reminderSchema);

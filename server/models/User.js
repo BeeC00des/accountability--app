@@ -22,8 +22,15 @@ const userSchema = new mongoose.Schema({
     minlength: [6, 'Password must be at least 6 characters'],
     select: false
   },
+  // Small profile photo stored as a data URL (resized client-side to 256×256).
   avatar: {
     type: String,
+    default: ''
+  },
+  bio: {
+    type: String,
+    trim: true,
+    maxlength: [160, 'Bio cannot exceed 160 characters'],
     default: ''
   },
   friendCode: {
@@ -58,6 +65,25 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  // Who invited this user (their friend code doubles as a referral code).
+  referredBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+    index: true
+  },
+  // White-label dashboard color: a preset name or a #rrggbb hex.
+  accent: {
+    type: String,
+    default: 'lime',
+    match: [/^(lime|ocean|coral|lavender|mint|amber|graphite|#[0-9a-fA-F]{6})$/, 'Choose a valid color']
+  },
+  // Pinterest profiles/boards the user browses in the inspiration gallery.
+  inspirationSources: [{
+    url: { type: String, required: true, maxlength: 300 },
+    label: { type: String, maxlength: 80 },
+    _id: false
+  }],
   notificationsEnabled: {
     type: Boolean,
     default: true

@@ -1,129 +1,91 @@
 import React, { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { Icon, TextField } from '../components/ui';
+import { apiError } from '../lib/format';
+
+const MIN_PASSWORD = 8;
 
 export default function AuthPage() {
   const { login, register } = useAuth();
-
   const navigate = useNavigate();
-
-  const [tab, setTab] = useState('login');
-
+  const [params] = useSearchParams();
+  const referralCode = (params.get('ref') || '').slice(0, 20);
+  const [mode, setMode] = useState(referralCode ? 'register' : 'login');
   const [form, setForm] = useState({ name: '', email: '', password: '' });
-
-  const [error, setError] = useState('');
-
+  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [formError, setFormError] = useState('');
   const [loading, setLoading] = useState(false);
+  const isRegister = mode === 'register';
 
-  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
+  const set = key => event => { setForm(current => ({ ...current, [key]: event.target.value })); setErrors(current => ({ ...current, [key]: '' })); };
+  const switchMode = next => { setMode(next); setErrors({}); setFormError(''); };
 
-  const submit = async e => {
+  const validate = () => {
+    const next = {};
+    if (isRegister && !form.name.trim()) next.name = 'Enter your name.';
+    if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) next.email = 'Enter a valid email address.';
+    if (!form.password) next.password = 'Enter your password.';
+    else if (isRegister && form.password.length < MIN_PASSWORD) next.password = `Use at least ${MIN_PASSWORD} characters.`;
+    setErrors(next);
+    return !Object.keys(next).length;
+  };
 
-    e.preventDefault();
-    setError('');
+  const submit = async event => {
+    event.preventDefault();
+    setFormError('');
+    if (!validate()) return;
     setLoading(true);
-
     try {
-      if (tab === 'login') {
-        await login(form.email, form.password);
-      } else {
-        if (!form.name.trim()) { 
-          setError('Name is required.'); 
-          setLoading(false);
-           return; 
-          }
-        await register(form.name, form.email, form.password);
-      }
-      navigate('/dashboard');
-    } catch (err) {
-      const msg = err.response?.data?.message || err.response?.data?.errors?.[0]?.msg || 'Something went wrong.';
-      setError(msg);
-
-    } finally {
+      if (isRegister) await register(form.name.trim(), form.email.trim(), form.password, referralCode);
+      else await login(form.email.trim(), form.password);
+      navigate('/board', { replace: true });
+    } catch (submitError) {
+      setFormError(apiError(submitError, 'Something went wrong. Please try again.'));
       setLoading(false);
     }
   };
-  
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <div className="auth-logo">
-          <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🔥</div>
-          <h1>Accountable</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.5rem' }}>
-            Build habits. Stay consistent. Grow together.
-          </p>
+    <main className="auth-page">
+      <section className="auth-card" aria-labelledby="auth-title">
+        <div className="auth-brand">
+          <span className="auth-mark" aria-hidden="true"><Icon name="local_fire_department" filled /></span>
+          <h1 id="auth-title" className="headline-small">{isRegister ? 'Create your account' : 'Sign in'}</h1>
+          <p className="body-medium text-variant">{isRegister ? 'Imagine your future, get inspired and act.' : 'to continue to Accountable'}</p>
         </div>
 
-        <div className="auth-tabs">
-          <button className={`auth-tab${tab === 'login' ? ' active' : ''}`} onClick={() => { setTab('login'); setError(''); }}>
-            Sign in
-          </button>
-          <button className={`auth-tab${tab === 'register' ? ' active' : ''}`} onClick={() => { setTab('register'); setError(''); }}>
-            Create account
-          </button>
-        </div>
-
-        {error && <div className="alert alert-error">{error}</div>}
-
-        <form onSubmit={submit}>
-          {tab === 'register' && (
-            <div className="form-group">
-              <label className="form-label">Your name</label>
-              <input
-                className="form-input"
-                type="text"
-                value={form.name}
-                onChange={set('name')}
-                placeholder="Ada Lovelace"
-                required
-                autoFocus
-              />
-            </div>
-          )}
-          <div className="form-group">
-            <label className="form-label">Email</label>
-            <input
-              className="form-input"
-              type="email"
-              value={form.email}
-              onChange={set('email')}
-              placeholder="you@example.com"
-              required
-              autoFocus={tab === 'login'}
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Password</label>
-            <input
-              className="form-input"
-              type="password"
+        {isRegister && referralCode && (
+          <p className="referral-chip"><Icon name="redeem" filled />Invited by a friend · you’ll be connected automatically</p>
+        )}
+        <form onSubmit={submit} noValidate>
+          {formError && <p className="inline-error" role="alert"><Icon name="error" />{formError}</p>}
+          {isRegister && <TextField label="Name" value={form.name} onChange={set('name')} autoComplete="name" maxLength={50} error={errors.name} autoFocus />}
+          <TextField label="Email" type="email" value={form.email} onChange={set('email')} autoComplete="email" error={errors.email} autoFocus={!isRegister} />
+          <div className="password-field">
+            <TextField
+              label="Password"
+              type={showPassword ? 'text' : 'password'}
               value={form.password}
               onChange={set('password')}
-              placeholder="••••••••"
-              required
-              minLength={6}
+              autoComplete={isRegister ? 'new-password' : 'current-password'}
+              error={errors.password}
+              help={isRegister ? `At least ${MIN_PASSWORD} characters.` : undefined}
             />
-          </div>
-
-          <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%', padding: '0.75rem', fontSize: '1rem', marginTop: '0.5rem' }}>
-            {loading ? 'Please wait…' : tab === 'login' ? 'Sign in' : 'Create account'}
-          </button>
-        </form>
-
-        {tab === 'login' && (
-          <p style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            New here?{' '}
-            <button onClick={() => setTab('register')} style={{ background: 'none', border: 'none', color: 'var(--accent-light)', cursor: 'pointer', fontSize: 'inherit' }}>
-              Create a free account
+            <button type="button" className="icon-btn state-layer password-toggle" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword}>
+              <Icon name={showPassword ? 'visibility_off' : 'visibility'} />
             </button>
-          </p>
-        )}
-      </div>
-    </div>
+          </div>
+          <div className="auth-actions">
+            <button type="button" className="btn btn-text state-layer" onClick={() => switchMode(isRegister ? 'login' : 'register')}>
+              {isRegister ? 'Sign in instead' : 'Create account'}
+            </button>
+            <button type="submit" className="btn btn-filled state-layer" disabled={loading}>{loading ? 'Please wait…' : isRegister ? 'Create account' : 'Sign in'}</button>
+          </div>
+        </form>
+      </section>
+      <p className="auth-footer body-small text-variant">Small steps. Meaningful progress.</p>
+    </main>
   );
 }
-
-
-// How will i be able recreate or write this on my own.

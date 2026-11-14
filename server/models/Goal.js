@@ -92,6 +92,13 @@ const goalSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  isCompleted: {
+    type: Boolean,
+    default: false
+  },
+  completedAt: {
+    type: Date
+  },
   emoji: {
     type: String,
     default: '🎯'
@@ -101,18 +108,19 @@ const goalSchema = new mongoose.Schema({
   toJSON: { virtuals: true }
 });
 
-// Virtual for completion percentage
+// Virtuals guard against partial documents (e.g. populate('goal', 'title emoji')),
+// which have no checkIns/startDate loaded.
 goalSchema.virtual('completionRate').get(function() {
-  if (this.checkIns.length === 0) return 0;
-  const completed = this.checkIns.filter(c => c.completed).length;
-  return Math.round((completed / this.checkIns.length) * 100);
+  const checkIns = this.checkIns || [];
+  if (checkIns.length === 0) return 0;
+  return Math.round((checkIns.filter(c => c.completed).length / checkIns.length) * 100);
 });
 
-// Virtual for total days since start
 goalSchema.virtual('totalDays').get(function() {
-  const now = new Date();
-  const start = new Date(this.startDate);
-  return Math.floor((now - start) / (1000 * 60 * 60 * 24));
+  if (!this.startDate) return 0;
+  return Math.floor((Date.now() - new Date(this.startDate)) / (1000 * 60 * 60 * 24));
 });
+
+goalSchema.index({ owner: 1, isActive: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Goal', goalSchema);

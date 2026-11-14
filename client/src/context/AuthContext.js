@@ -1,79 +1,73 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 
 const AuthContext = createContext(null);
+const TOKEN_KEY = 'token';
 
-const API = axios.create({ baseURL: '/api' });
+const readToken = () => { try { return window.localStorage.getItem(TOKEN_KEY); } catch { return null; } };
+const writeToken = token => {
+  try {
+    if (token) window.localStorage.setItem(TOKEN_KEY, token);
+    else window.localStorage.removeItem(TOKEN_KEY);
+  } catch { /* Storage may be blocked; the session still works until reload. */ }
+};
 
-// Attach token to every request.  
+export const API = axios.create({ baseURL: process.env.REACT_APP_API_URL || '/api' });
+
 API.interceptors.request.use(config => {
-
-  const token = localStorage.getItem('token');
-
+  const token = readToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
-  
   return config;
-
 });
 
-export const AuthProvider = ({ children }) => {
+const browserTimezone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; } };
 
+export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
+  const logout = useCallback(() => { writeToken(null); setUser(null); }, []);
 
-    if (token) {
-      API.get('/auth/me')
-        .then(res => setUser(res.data.user))
-        .catch(() => localStorage.removeItem('token'))
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
+  // An expired or revoked token anywhere in the app signs the user out cleanly.
+  useEffect(() => {
+    const id = API.interceptors.response.use(response => response, error => {
+      if (error.response?.status === 401 && readToken()) logout();
+      return Promise.reject(error);
+    });
+    return () => API.interceptors.response.eject(id);
+  }, [logout]);
+
+  useEffect(() => {
+    if (!readToken()) { setLoading(false); return; }
+    API.get('/auth/me')
+      .then(response => setUser(response.data.user))
+      .catch(() => writeToken(null))
+      .finally(() => setLoading(false));
   }, []);
 
-  const login = async (email, password) => {
+  const login = useCallback(async (email, password) => {
+    const response = await API.post('/auth/login', { email, password });
+    writeToken(response.data.token);
+    setUser(response.data.user);
+    return response.data;
+  }, []);
 
-    const res = await API.post('/auth/login', { email, password });
+  const register = useCallback(async (name, email, password, referralCode) => {
+    const response = await API.post('/auth/register', { name, email, password, timezone: browserTimezone(), referralCode: referralCode || undefined });
+    writeToken(response.data.token);
+    setUser(response.data.user);
+    return response.data;
+  }, []);
 
-    localStorage.setItem('token', res.data.token);
+  // Merge partial updates (e.g. a new streak after check-in) into the signed-in user.
+  const updateUser = useCallback(patch => setUser(previous => (previous ? { ...previous, ...patch } : previous)), []);
 
-    setUser(res.data.user);
-    return res.data;
-  };
-
-  const register = async (name, email, password) => {
-
-    const res = await API.post('/auth/register', { name, email, password });
-
-    localStorage.setItem('token', res.data.token);
-
-    setUser(res.data.user);
-
-    return res.data;
-  };
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
-  };
-
-  // i don't understand this line of updated user
-  const updateUser = (updatedUser) => setUser(prev => ({ ...prev, ...updatedUser }));
-
-  return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser, API }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = useMemo(() => ({ user, loading, login, register, logout, updateUser, API }), [user, loading, login, register, logout, updateUser]);
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
+  return context;
 };
-
-export { API };

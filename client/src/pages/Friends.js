@@ -1,255 +1,387 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { API } from '../context/AuthContext';
+import { useApp } from '../context/AppContext';
+import { Avatar, ConfirmDialog, Dialog, EmptyState, ErrorBanner, Icon, LinearProgress, Menu, Spinner, TextField } from '../components/ui';
+import NudgeDialog from '../components/NudgeDialog';
+import { apiError, firstName, plural, relativeTime } from '../lib/format';
+import { periodLabel, periodWord, tileClass } from '../lib/goals';
 
-const initials = name => name?.split(' ').map(word => word[0]).join('').toUpperCase().slice(0, 2) || '?';
-const formatDate = dateValue => {
-  if (!dateValue) return 'Never';
-  const date = new Date(dateValue);
-  if (Number.isNaN(date.getTime())) return 'Never';
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date);
-};
-const DEFAULT_REMINDER = "Hey! Don't forget to check in on your goals today 💪";
+const TABS = [
+  { value: 'circle', label: 'Circle', icon: 'groups' },
+  { value: 'requests', label: 'Requests', icon: 'person_add' },
+  { value: 'add', label: 'Add friend', icon: 'search' }
+];
+const NUDGE_LIMIT = 3;
+
+/** A friend's profile: shared goals with progress, plus nudge / cheer actions. */
+function FriendSheet({ friend, onClose, onCompose }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    API.get(`/friends/${friend._id}/goals`)
+      .then(response => setData(response.data))
+      .catch(loadError => setError(apiError(loadError, 'Could not load shared goals.')));
+  }, [friend._id]);
+
+  const goals = data?.goals || [];
+  return (
+    <Dialog
+      wide
+      title={friend.name}
+      description={`${plural(friend.streak || 0, 'day')} streak · last check-in ${relativeTime(friend.lastCheckIn).toLowerCase()}`}
+      onClose={onClose}
+      actions={<>
+        <button type="button" className="btn btn-text state-layer" onClick={onClose}>Close</button>
+        <button type="button" className="btn btn-filled state-layer" onClick={() => onCompose('nudge', goals)} disabled={friend.nudgesSentToday >= NUDGE_LIMIT}><Icon name="notifications_active" />Nudge</button>
+      </>}
+    >
+      {error && <p className="inline-error" role="alert"><Icon name="error" />{error}</p>}
+      {!data && !error && <Spinner label="Loading shared goals" />}
+      {data && goals.length === 0 && (
+        <EmptyState icon="visibility_off" title="No shared goals">{firstName(friend.name)} hasn’t shared any goals yet. You can still send a nudge.</EmptyState>
+      )}
+      {goals.length > 0 && (
+        <ul className="friend-goal-list" role="list">
+          {goals.map(goal => (
+            <li key={goal._id} className="card card-tonal friend-goal">
+              <div className="friend-goal-head">
+                <span className={`tile ${tileClass(goal)}`} aria-hidden="true">{goal.emoji}</span>
+                <div className="list-item-content">
+                  <span className="title-small">{goal.title}</span>
+                  <span className="body-small text-variant">
+                    {goal.isCompleted ? 'Completed 🏆' : goal.checkedInThisPeriod ? `Checked in ${periodLabel(goal)}` : `Not checked in ${periodLabel(goal)}`}
+                    {goal.streak > 0 && ` · 🔥 ${plural(goal.streak, periodWord(goal))}`}
+                  </span>
+                </div>
+                <button type="button" className="btn btn-text btn-sm state-layer" onClick={() => onCompose('cheer', goals, goal._id)}><Icon name="celebration" />Cheer</button>
+              </div>
+              <LinearProgress value={goal.completionRate} label={`${goal.title} consistency`} />
+              <span className="body-small text-variant">{goal.completionRate}% consistency{goal.todoProgress.total > 0 && ` · ${goal.todoProgress.done}/${goal.todoProgress.total} steps`}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Dialog>
+  );
+}
 
 export default function Friends() {
+  const { notify } = useApp();
+  const [params, setParams] = useSearchParams();
+  const tab = TABS.some(item => item.value === params.get('tab')) ? params.get('tab') : 'circle';
+  const setTab = value => setParams(value === 'circle' ? {} : { tab: value }, { replace: true });
+
   const [friends, setFriends] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [sent, setSent] = useState([]);
   const [friendCode, setFriendCode] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResult, setSearchResult] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [searching, setSearching] = useState(false);
-  const [actionId, setActionId] = useState('');
-  const [searchError, setSearchError] = useState('');
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [reminderTo, setReminderTo] = useState(null);
-  const [reminderMsg, setReminderMsg] = useState(DEFAULT_REMINDER);
-  const [sendingReminder, setSendingReminder] = useState(false);
+  const [busyId, setBusyId] = useState('');
 
-  const load = async () => {
+  const [query, setQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [result, setResult] = useState(null);
+
+  const [sheetFriend, setSheetFriend] = useState(null);
+  const [compose, setCompose] = useState(null); // { friend, mode, goals, goalId }
+  const [confirmRemove, setConfirmRemove] = useState(null);
+
+  const loadFriends = useCallback(() => API.get('/friends').then(response => setFriends(response.data.friends || [])), []);
+  const loadRequests = useCallback(() => API.get('/friends/requests').then(response => {
+    setRequests(response.data.requests || []);
+    setSent(response.data.sent || []);
+  }), []);
+
+  const load = useCallback(async () => {
     setError('');
     try {
-      const [friendsResponse, requestsResponse, codeResponse] = await Promise.all([
-        API.get('/friends'),
-        API.get('/friends/requests'),
-        API.get('/friends/code')
-      ]);
-      setFriends(friendsResponse.data.friends || []);
-      setRequests(requestsResponse.data.requests || []);
+      const [, , codeResponse] = await Promise.all([loadFriends(), loadRequests(), API.get('/friends/code')]);
       setFriendCode(codeResponse.data.friendCode || '');
     } catch (loadError) {
-      setError(loadError.response?.data?.message || 'Could not load your friends. Check your connection and try again.');
+      setError(apiError(loadError, 'Could not load your friends.'));
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => { load(); }, []);
+  }, [loadFriends, loadRequests]);
+  useEffect(() => { load(); }, [load]);
 
   const search = async event => {
-    event?.preventDefault();
-    const query = searchQuery.trim();
-    if (!query) {
-      setSearchError('Enter an email address or friend code.');
-      return;
-    }
+    event.preventDefault();
+    const value = query.trim();
+    if (!value) { setSearchError('Enter an email address or friend code.'); return; }
     setSearching(true);
     setSearchError('');
-    setSearchResult(null);
+    setResult(null);
     try {
-      const response = await API.post('/friends/search', { query });
-      setSearchResult(response.data);
+      const response = await API.post('/friends/search', { query: value });
+      setResult(response.data);
     } catch (searchFailure) {
-      setSearchError(searchFailure.response?.data?.message || 'Could not find that account. Please try again.');
+      setSearchError(apiError(searchFailure, 'Could not find that account.'));
     } finally {
       setSearching(false);
     }
   };
 
-  const sendRequest = async userId => {
-    setActionId(userId);
-    setSearchError('');
+  const sendRequest = async user => {
+    setBusyId(user._id);
     try {
-      await API.post(`/friends/request/${userId}`);
-      setSearchResult(result => ({ ...result, hasPendingRequest: true }));
-      setSuccess('Friend request sent!');
+      await API.post(`/friends/request/${user._id}`);
+      setResult(current => ({ ...current, hasPendingRequest: true }));
+      setSent(current => [{ _id: `pending-${user._id}`, to: user, createdAt: new Date().toISOString() }, ...current]);
+      notify(`Request sent to ${firstName(user.name)}`);
     } catch (requestError) {
-      setSearchError(requestError.response?.data?.message || 'Could not send the friend request.');
+      setSearchError(apiError(requestError, 'Could not send the friend request.'));
     } finally {
-      setActionId('');
+      setBusyId('');
     }
   };
 
-  const respondToRequest = async (requestId, action) => {
-    setActionId(requestId);
-    setError('');
+  const cancelRequest = async target => {
+    setBusyId(target._id);
     try {
-      await API.put(`/friends/request/${requestId}`, { action });
+      await API.delete(`/friends/request/${target._id}`);
+      setSent(current => current.filter(item => item.to._id !== target._id));
+      if (result?.user._id === target._id) setResult(current => ({ ...current, hasPendingRequest: false }));
+      notify('Request cancelled');
+    } catch (cancelError) {
+      notify(apiError(cancelError, 'Could not cancel the request.'));
+    } finally {
+      setBusyId('');
+    }
+  };
+
+  const respond = async (requestId, action) => {
+    setBusyId(requestId);
+    try {
+      const response = await API.put(`/friends/request/${requestId}`, { action });
       setRequests(current => current.filter(request => request._id !== requestId));
-      setSuccess(action === 'accept' ? 'You are now friends!' : 'Friend request declined.');
-      if (searchResult?.receivedRequestId === requestId) {
-        setSearchResult(result => ({ ...result, receivedRequestId: null, isAlreadyFriend: action === 'accept' }));
-      }
-      if (action === 'accept') {
-        const response = await API.get('/friends');
-        setFriends(response.data.friends || []);
-      }
-    } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Could not update the friend request.');
+      if (result?.receivedRequestId === requestId) setResult(current => ({ ...current, receivedRequestId: null, isAlreadyFriend: action === 'accept' }));
+      if (action === 'accept') await loadFriends();
+      notify(response.data.message);
+    } catch (respondError) {
+      notify(apiError(respondError, 'Could not update the request.'));
     } finally {
-      setActionId('');
+      setBusyId('');
     }
   };
 
-  const removeFriend = async userId => {
-    if (!window.confirm('Remove this friend?')) return;
-    setActionId(userId);
+  const removeFriend = async () => {
+    const friend = confirmRemove;
+    setBusyId(friend._id);
     try {
-      await API.delete(`/friends/${userId}`);
-      setFriends(current => current.filter(friend => friend._id !== userId));
-      setSuccess('Friend removed.');
+      await API.delete(`/friends/${friend._id}`);
+      setFriends(current => current.filter(item => item._id !== friend._id));
+      notify(`${firstName(friend.name)} removed from your circle`);
+      setConfirmRemove(null);
     } catch (removeError) {
-      setError(removeError.response?.data?.message || 'Could not remove friend.');
+      notify(apiError(removeError, 'Could not remove this friend.'));
     } finally {
-      setActionId('');
+      setBusyId('');
     }
   };
 
-  const shareFriendCode = async () => {
-    const message = `Add me on Accountable! Use my friend code: ${friendCode}`;
+  const invite = `Join me on Accountable so we can keep each other on track. My friend code is ${friendCode}`;
+  const copyCode = async () => {
     try {
-      if (navigator.share) {
-        await navigator.share({ title: 'Add me on Accountable', text: message });
-      } else if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(message);
-        setSuccess('Invite copied. Share it with your friend!');
-      } else {
-        window.prompt('Copy and share this invite:', message);
-      }
+      await navigator.clipboard.writeText(friendCode);
+      notify('Friend code copied');
+    } catch {
+      notify('Copy isn’t available here — select the code to copy it.');
+    }
+  };
+  const shareInvite = async () => {
+    try {
+      if (navigator.share) await navigator.share({ title: 'Join me on Accountable', text: invite });
+      else { await navigator.clipboard.writeText(invite); notify('Invite copied — paste it anywhere'); }
     } catch (shareError) {
-      if (shareError.name !== 'AbortError') setError('Could not share the invite. You can copy the code manually.');
+      if (shareError?.name !== 'AbortError') notify('Could not share the invite.');
     }
   };
 
-  const sendReminder = async () => {
-    if (!reminderTo) return;
-    setSendingReminder(true);
-    try {
-      await API.post('/reminders', { to: reminderTo._id, message: reminderMsg.trim() });
-      setReminderTo(null);
-      setSuccess(`Reminder sent to ${reminderTo.name}!`);
-    } catch (reminderError) {
-      setError(reminderError.response?.data?.message || 'Could not send the reminder.');
-    } finally {
-      setSendingReminder(false);
-    }
-  };
+  const openCompose = (friend, mode, goals = [], goalId = '') => { setSheetFriend(null); setCompose({ friend, mode, goals, goalId }); };
+  const onSent = friendId => setFriends(current => current.map(friend => (friend._id === friendId ? { ...friend, nudgesSentToday: (friend.nudgesSentToday || 0) + 1 } : friend)));
 
-  if (loading) return <div className="page loading-state"><div className="spinner" role="status" aria-label="Loading friends" /></div>;
+  if (loading) return <Spinner label="Loading friends" />;
 
   return (
     <div className="page page-narrow">
       <header className="page-header">
-        <div><h2>Friends</h2><p>Build your accountability circle</p></div>
+        <div>
+          <h1 className="headline-medium">Friends</h1>
+          <p className="body-large text-variant">Your accountability circle — nudge, cheer, and grow together.</p>
+        </div>
       </header>
-      {success && <div className="alert alert-success" role="status">{success}</div>}
-      {error && <div className="alert alert-error" role="alert">{error} <button type="button" className="inline-link" onClick={load}>Try again</button></div>}
 
-      <section className="card friends-invite-card" aria-labelledby="invite-heading">
-        <div className="friends-section-heading">
-          <div><h3 id="invite-heading">Add an accountability partner</h3><p>Find friends by email or share your code anywhere.</p></div>
-          <span className="friends-heading-icon" aria-hidden="true">👥</span>
-        </div>
-        <form className="friend-search-form" onSubmit={search}>
-          <label className="form-label" htmlFor="friend-search">Email address or friend code</label>
-          <div className="friend-search-controls">
-            <input
-              id="friend-search"
-              className="form-input"
-              type="text"
-              autoComplete="off"
-              maxLength={254}
-              placeholder="name@example.com or AC-1A2B3C4D"
-              value={searchQuery}
-              onChange={event => setSearchQuery(event.target.value)}
-            />
-            <button type="submit" className="btn btn-primary" disabled={searching}>{searching ? 'Searching…' : 'Find friend'}</button>
+      {error && <ErrorBanner message={error} onRetry={load} />}
+
+      <div className="tabs" role="tablist" aria-label="Friends sections">
+        {TABS.map(item => (
+          <button
+            key={item.value}
+            type="button"
+            role="tab"
+            id={`tab-${item.value}`}
+            aria-selected={tab === item.value}
+            aria-controls={`panel-${item.value}`}
+            className="tab state-layer"
+            onClick={() => setTab(item.value)}
+          >
+            <Icon name={item.icon} size="20" />{item.label}
+            {item.value === 'requests' && requests.length > 0 && <span className="badge">{requests.length}</span>}
+          </button>
+        ))}
+      </div>
+
+      <section className="tab-panel" role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
+        {tab === 'circle' && (friends.length === 0 ? (
+          <div className="card card-outlined">
+            <EmptyState icon="group_add" title="Your circle starts here" action={<button type="button" className="btn btn-filled state-layer" onClick={() => setTab('add')}><Icon name="person_add" />Add a friend</button>}>
+              Add someone by email or friend code. You’ll be able to see shared goals and send each other nudges.
+            </EmptyState>
           </div>
-        </form>
-        {searchError && <div className="alert alert-error friends-inline-error" role="alert">{searchError}</div>}
-
-        {searchResult && (
-          <div className="friend-search-result">
-            <div className="avatar avatar-lg" aria-hidden="true">{initials(searchResult.user.name)}</div>
-            <div className="friend-result-info">
-              <strong>{searchResult.user.name}</strong>
-              <span>{searchResult.user.email}</span>
-              {searchResult.user.friendCode && <small>Friend code: {searchResult.user.friendCode}</small>}
-            </div>
-            {searchResult.isAlreadyFriend ? <span className="badge badge-success">Already friends</span> :
-              searchResult.receivedRequestId ? <button className="btn btn-primary btn-sm" onClick={() => respondToRequest(searchResult.receivedRequestId, 'accept')} disabled={actionId === searchResult.receivedRequestId}>Accept request</button> :
-              searchResult.hasPendingRequest ? <span className="badge badge-accent">Request sent</span> :
-              <button className="btn btn-primary btn-sm" onClick={() => sendRequest(searchResult.user._id)} disabled={actionId === searchResult.user._id}>{actionId === searchResult.user._id ? 'Sending…' : 'Add friend'}</button>}
-          </div>
-        )}
-
-        <div className="share-code-panel">
-          <div><span className="share-code-label">Your friend code</span><strong className="share-code-value">{friendCode || 'Loading code…'}</strong></div>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={shareFriendCode} disabled={!friendCode}>Share invite</button>
-        </div>
-        <p className="field-help">Your friend can enter this code here. Use Share to send it in a message or social app.</p>
-      </section>
-
-      {requests.length > 0 && (
-        <section className="friends-section" aria-labelledby="requests-heading">
-          <h3 className="friends-section-title" id="requests-heading">Friend requests <span className="badge badge-accent">{requests.length}</span></h3>
-          <div className="friends-list">
-            {requests.map(request => (
-              <article className="friend-card" key={request._id}>
-                <div className="avatar" aria-hidden="true">{initials(request.from?.name)}</div>
-                <div className="friend-info"><h4>{request.from?.name || 'Accountable user'}</h4><p>{request.from?.email}</p></div>
-                <div className="friend-actions">
-                  <button className="btn btn-primary btn-sm" onClick={() => respondToRequest(request._id, 'accept')} disabled={actionId === request._id}>{actionId === request._id ? 'Please wait…' : 'Accept'}</button>
-                  <button className="btn btn-ghost btn-sm" onClick={() => respondToRequest(request._id, 'reject')} disabled={actionId === request._id}>Decline</button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <section className="friends-section" aria-labelledby="friends-heading">
-        <h3 className="friends-section-title" id="friends-heading">My friends <span className="badge badge-accent">{friends.length}</span></h3>
-        {friends.length === 0 ? (
-          <div className="empty-state card"><div className="empty-icon" aria-hidden="true">🤝</div><h3>Your circle starts here</h3><p>Search by email or share your friend code to connect with someone.</p></div>
         ) : (
-          <div className="friends-list">
-            {friends.map(friend => (
-              <article key={friend._id} className="friend-card">
-                <div className="avatar avatar-lg" aria-hidden="true">{initials(friend.name)}</div>
-                <div className="friend-info"><h4>{friend.name}</h4><p>{friend.email}</p><p className="friend-last-active">Last active: {formatDate(friend.lastCheckIn)}</p></div>
-                <span className="streak" aria-label={`${friend.streak || 0} day streak`}>🔥 {friend.streak || 0}</span>
-                <div className="friend-actions">
-                  <button className="btn btn-ghost btn-sm" onClick={() => { setReminderTo(friend); setReminderMsg(DEFAULT_REMINDER); }}>Remind</button>
-                  <button className="btn btn-danger btn-sm" onClick={() => removeFriend(friend._id)} disabled={actionId === friend._id} aria-label={`Remove ${friend.name} from friends`}>Remove</button>
+          <div className="card card-outlined list-card">
+            <ul className="list" role="list">
+              {friends.map((friend, index) => (
+                <React.Fragment key={friend._id}>
+                  {index > 0 && <li className="list-divider" role="separator" />}
+                  <li className="list-item friend-row">
+                    <button type="button" className="friend-row-main state-layer" onClick={() => setSheetFriend(friend)} aria-label={`View ${friend.name}’s shared goals`}>
+                      <Avatar name={friend.name} src={friend.avatar} />
+                      <span className="list-item-content">
+                        <span className="list-item-headline">{friend.name}</span>
+                        <span className="list-item-supporting friend-status">
+                          {friend.checkedInToday
+                            ? <span className="tag tag-success"><Icon name="check" />Checked in today</span>
+                            : <span>Last check-in {relativeTime(friend.lastCheckIn).toLowerCase()}</span>}
+                          <span className="streak-inline"><Icon name="local_fire_department" filled size="18" />{friend.streak || 0}</span>
+                          {friend.sharedGoalCount > 0 && <span>{plural(friend.sharedGoalCount, 'shared goal')}</span>}
+                        </span>
+                      </span>
+                    </button>
+                    <div className="list-item-trailing">
+                      {friend.checkedInToday
+                        ? <button type="button" className="btn btn-text btn-sm state-layer" onClick={() => openCompose(friend, 'cheer')} disabled={friend.nudgesSentToday >= NUDGE_LIMIT}><Icon name="celebration" />Cheer</button>
+                        : <button type="button" className="btn btn-tonal btn-sm state-layer" onClick={() => openCompose(friend, 'nudge')} disabled={friend.nudgesSentToday >= NUDGE_LIMIT} title={friend.nudgesSentToday >= NUDGE_LIMIT ? 'Daily limit reached' : undefined}>Nudge</button>}
+                      <Menu
+                        label={`More actions for ${friend.name}`}
+                        items={[
+                          { label: 'View shared goals', icon: 'visibility', onSelect: () => setSheetFriend(friend) },
+                          { label: 'Send encouragement', icon: 'celebration', onSelect: () => openCompose(friend, 'cheer') },
+                          { divider: true },
+                          { label: 'Remove friend', icon: 'person_remove', danger: true, onSelect: () => setConfirmRemove(friend) }
+                        ]}
+                      />
+                    </div>
+                  </li>
+                </React.Fragment>
+              ))}
+            </ul>
+          </div>
+        ))}
+
+        {tab === 'requests' && (
+          <>
+            <h2 className="title-small section-label">Received</h2>
+            {requests.length === 0 ? (
+              <p className="body-medium text-variant section-empty"><Icon name="inbox" />No pending requests.</p>
+            ) : (
+              <div className="card card-outlined list-card">
+                <ul className="list" role="list">
+                  {requests.map(request => (
+                    <li key={request._id} className="list-item">
+                      <Avatar name={request.from?.name} />
+                      <span className="list-item-content">
+                        <span className="list-item-headline">{request.from?.name}</span>
+                        <span className="list-item-supporting">{request.from?.email} · {relativeTime(request.createdAt)}</span>
+                      </span>
+                      <div className="list-item-trailing">
+                        <button type="button" className="btn btn-text btn-sm state-layer" onClick={() => respond(request._id, 'reject')} disabled={busyId === request._id}>Decline</button>
+                        <button type="button" className="btn btn-filled btn-sm state-layer" onClick={() => respond(request._id, 'accept')} disabled={busyId === request._id}>Accept</button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <h2 className="title-small section-label">Sent</h2>
+            {sent.length === 0 ? (
+              <p className="body-medium text-variant section-empty"><Icon name="outgoing_mail" />No requests waiting on a reply.</p>
+            ) : (
+              <div className="card card-outlined list-card">
+                <ul className="list" role="list">
+                  {sent.map(request => (
+                    <li key={request._id} className="list-item">
+                      <Avatar name={request.to.name} />
+                      <span className="list-item-content">
+                        <span className="list-item-headline">{request.to.name}</span>
+                        <span className="list-item-supporting">Waiting · sent {relativeTime(request.createdAt).toLowerCase()}</span>
+                      </span>
+                      <button type="button" className="btn btn-text btn-sm state-layer" onClick={() => cancelRequest(request.to)} disabled={busyId === request.to._id}>Cancel</button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+
+        {tab === 'add' && (
+          <div className="add-friend-grid">
+            <section className="card card-outlined" aria-labelledby="find-title">
+              <h2 id="find-title" className="title-medium card-title">Find a friend</h2>
+              <form onSubmit={search} className="search-form">
+                <TextField
+                  label="Email or friend code"
+                  value={query}
+                  onChange={event => { setQuery(event.target.value); setSearchError(''); }}
+                  placeholder="name@example.com or AC-1A2B3C4D"
+                  autoComplete="off"
+                  maxLength={254}
+                  error={searchError}
+                  help="Exact email address or their AC- code."
+                />
+                <button type="submit" className="btn btn-filled state-layer" disabled={searching}><Icon name="search" />{searching ? 'Searching…' : 'Search'}</button>
+              </form>
+              {result && (
+                <div className="search-result card card-tonal">
+                  <Avatar name={result.user.name} src={result.user.avatar} size="lg" />
+                  <div className="list-item-content">
+                    <span className="title-medium">{result.user.name}</span>
+                    <span className="body-medium text-variant">{result.user.email}</span>
+                  </div>
+                  {result.isAlreadyFriend ? <span className="tag tag-success"><Icon name="check" />Friends</span>
+                    : result.receivedRequestId ? <button type="button" className="btn btn-filled state-layer" onClick={() => respond(result.receivedRequestId, 'accept')} disabled={busyId === result.receivedRequestId}>Accept request</button>
+                      : result.hasPendingRequest ? <button type="button" className="btn btn-outlined state-layer" onClick={() => cancelRequest(result.user)} disabled={busyId === result.user._id}>Cancel request</button>
+                        : <button type="button" className="btn btn-filled state-layer" onClick={() => sendRequest(result.user)} disabled={busyId === result.user._id}><Icon name="person_add" />{busyId === result.user._id ? 'Sending…' : 'Add friend'}</button>}
                 </div>
-              </article>
-            ))}
+              )}
+            </section>
+
+            <section className="card card-filled invite-card" aria-labelledby="invite-title">
+              <Icon name="qr_code_2" className="invite-icon" />
+              <h2 id="invite-title" className="title-medium">Invite with your code</h2>
+              <p className="body-medium text-variant">Friends can enter this code to send you a request.</p>
+              <div className="code-display">
+                <span className="title-large code-value" aria-label={`Your friend code ${friendCode.split('').join(' ')}`}>{friendCode || '…'}</span>
+                <button type="button" className="icon-btn state-layer" onClick={copyCode} disabled={!friendCode} aria-label="Copy friend code"><Icon name="content_copy" /></button>
+              </div>
+              <button type="button" className="btn btn-tonal state-layer" onClick={shareInvite} disabled={!friendCode}><Icon name="share" />Share invite</button>
+            </section>
           </div>
         )}
       </section>
 
-      {reminderTo && (
-        <div className="modal-backdrop" onClick={event => event.target === event.currentTarget && setReminderTo(null)}>
-          <section className="modal" role="dialog" aria-modal="true" aria-labelledby="send-reminder-title">
-            <div className="modal-header"><h3 id="send-reminder-title">Send a reminder to {reminderTo.name}</h3><button type="button" className="btn btn-ghost btn-icon" onClick={() => setReminderTo(null)} aria-label="Close">✕</button></div>
-            <div className="form-group"><label className="form-label" htmlFor="reminder-message">Message</label><textarea id="reminder-message" className="form-textarea" maxLength={300} value={reminderMsg} onChange={event => setReminderMsg(event.target.value)} rows={3} /></div>
-            <div className="reminder-suggestions">
-              {["You've got this! 💪", "Don't break the streak! 🔥", 'One small step today 🚶', 'Your future self will thank you ✨'].map(message => <button type="button" key={message} className="mood-btn" onClick={() => setReminderMsg(message)}>{message}</button>)}
-            </div>
-            <div className="modal-actions"><button className="btn btn-ghost" onClick={() => setReminderTo(null)}>Cancel</button><button className="btn btn-primary" onClick={sendReminder} disabled={sendingReminder || !reminderMsg.trim()}>{sendingReminder ? 'Sending…' : 'Send reminder'}</button></div>
-          </section>
-        </div>
+      {sheetFriend && <FriendSheet friend={sheetFriend} onClose={() => setSheetFriend(null)} onCompose={(mode, goals, goalId) => openCompose(sheetFriend, mode, goals, goalId)} />}
+      {compose && <NudgeDialog friend={compose.friend} mode={compose.mode} goals={compose.goals} initialGoalId={compose.goalId} onClose={() => setCompose(null)} onSent={() => onSent(compose.friend._id)} />}
+      {confirmRemove && (
+        <ConfirmDialog title={`Remove ${firstName(confirmRemove.name)}?`} confirmLabel="Remove" onClose={() => setConfirmRemove(null)} onConfirm={removeFriend} busy={busyId === confirmRemove._id}>
+          You’ll stop seeing each other’s shared goals and won’t be able to send reminders. You can add them again later.
+        </ConfirmDialog>
       )}
     </div>
   );

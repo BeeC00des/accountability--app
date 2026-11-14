@@ -4,15 +4,14 @@ A full-stack app where friends keep each other accountable with daily reminders,
 
 ## Features
 
-- **Authentication** — JWT-based register/login with bcrypt password hashing
-- **Goals** — Create daily/weekly goals with categories, emojis, and progress tracking
-- **Check-ins** — Log daily progress with mood tracking and notes
-- **Streaks** — Automatic streak calculation and longest streak history
-- **Friends** — Search by email, send/accept friend requests, remove friends
-- **Mentors** — Search by email, send/accept mentors task, remove mentors/manager
-- **Blockers** — List common distractions and let us block them out.
-- **Reminders** — Send personal reminders to friends, receive automated daily nudges
-- **Dashboard** — Overview of today's goals, friends' activity, and unread reminders
+- **Today** — a setup checklist for new users, a progress ring for today's check-ins, one-tap check-ins, friends who still need a nudge, and new inbox items
+- **Goals** — daily or weekly goals created in a 3-step flow (Goal → Rhythm → Plan), with steps (to-dos), active/completed/all filters, edit, mark complete, and delete
+- **Check-ins** — one per local day (daily) or ISO week (weekly), with mood and a private note; can be edited later
+- **Streaks** — computed live on the server in each user's timezone, so a missed day resets the streak
+- **Friends** — add by email or friend code; incoming and sent requests (with cancel); view a friend's shared goals; nudge or cheer them
+- **Inbox** — Inbox/Sent tabs; filters (All, Unread, From friends, Daily reminders); "Check in" and "Say thanks" actions; mark read/unread; delete
+- **Daily reminder** — sent at each user's local reminder time, only when a goal still needs a check-in
+- **Design** — Material Design 3 (Google): navigation rail on desktop, navigation bar on mobile, light/dark/system themes, accessible dialogs and menus
 
 ## Tech Stack
 
@@ -86,61 +85,82 @@ accountability-app/
 │   │   └── users.js          # /api/users (public stats)
 │   ├── middleware/
 │   │   └── auth.js           # JWT protect middleware
-│   └── services/
-│       └── reminderService.js # Cron job logic
+│   ├── services/
+│   │   ├── goalStats.js      # Timezone-aware streaks & goal status
+│   │   └── reminderService.js # Cron job logic
+│   └── utils/                # timezone + validation helpers
 │
 └── client/src/
-    ├── context/AuthContext.js # Auth state + API instance
+    ├── AppBase.css            # Material 3 design system (tokens + components)
+    ├── App.css                # Page layouts
+    ├── context/               # AuthContext (API + session), AppContext (snackbar, unread)
+    ├── lib/                   # Formatting + goal constants
     ├── pages/
-    │   ├── AuthPage.js        # Login / Register
-    │   ├── Dashboard.js       # Home overview
-    │   ├── Goals.js           # Goal management + check-ins
-    │   ├── Friends.js         # Friend management + reminders
-    │   ├── Reminders.js       # Notification inbox
-    │   └── Profile.js         # Settings
+    │   ├── AuthPage.js        # /auth   Sign in / create account
+    │   ├── Dashboard.js       # /today  Today overview
+    │   ├── Goals.js           # /goals  Goals, steps, check-ins
+    │   ├── Friends.js         # /friends Circle, requests, add friend
+    │   ├── Reminders.js       # /inbox  Inbox + sent
+    │   └── Profile.js         # /profile Settings
     └── components/
-        └── Layout.js          # Sidebar + nav
+        ├── Layout.js          # Nav rail / nav bar / top app bar
+        ├── ui.js              # Icon, Dialog, Menu, TextField, Switch…
+        ├── GoalEditorDialog.js, CheckInDialog.js, NudgeDialog.js
 ```
 
 ## API Reference
 
+Every route except register/login needs `Authorization: Bearer <token>`. Errors return `{ message }`.
+
 ### Auth
 | Method | Route | Description |
 |--------|-------|-------------|
-| POST | `/api/auth/register` | Create account |
+| POST | `/api/auth/register` | Create account (`name`, `email`, `password` ≥ 8, optional `timezone`) |
 | POST | `/api/auth/login` | Login |
-| GET | `/api/auth/me` | Get current user |
-| PUT | `/api/auth/profile` | Update profile |
+| GET | `/api/auth/me` | Current user (refreshes the live streak) |
+| PUT | `/api/auth/profile` | Update `name`, `reminderTime` (HH:MM), `timezone`, `notificationsEnabled` |
 
 ### Goals
+Goal responses include server-computed `checkedInThisPeriod`, `currentCheckIn`, `streak`, `completionRate` and `todoProgress`.
+
 | Method | Route | Description |
 |--------|-------|-------------|
-| GET | `/api/goals` | List my goals |
+| GET | `/api/goals?status=active\|completed\|all` | List my goals |
+| GET | `/api/goals/friends` | Friends' shared goals (no private notes) |
 | POST | `/api/goals` | Create goal |
-| POST | `/api/goals/:id/checkin` | Check in on a goal |
-| PUT | `/api/goals/:id` | Update goal |
-| DELETE | `/api/goals/:id` | Remove goal |
+| PATCH | `/api/goals/:id` | Update allowed fields only (`title`, `description`, `category`, `frequency`, `targetDays`, `year`, `isPublic`, `emoji`, `isCompleted`) |
+| POST | `/api/goals/:id/checkin` | Check in for the current day/week (`completed`, `mood`, `note`) |
+| POST | `/api/goals/:id/todos` | Add a step |
+| PATCH | `/api/goals/:id/todos/:todoId` | Toggle or rename a step |
+| DELETE | `/api/goals/:id/todos/:todoId` | Remove a step |
+| DELETE | `/api/goals/:id` | Delete goal (soft delete) |
 
 ### Friends
 | Method | Route | Description |
 |--------|-------|-------------|
-| GET | `/api/friends` | List friends |
-| POST | `/api/friends/search` | Search by email |
+| GET | `/api/friends` | Friends, with `checkedInToday`, `sharedGoalCount`, `nudgesSentToday` |
+| GET | `/api/friends/code` | My shareable friend code |
+| GET | `/api/friends/requests` | `{ requests (incoming), sent (outgoing) }` |
+| POST | `/api/friends/search` | Find by exact email or friend code (`query`) |
 | POST | `/api/friends/request/:userId` | Send request |
-| PUT | `/api/friends/request/:id` | Accept/reject |
+| DELETE | `/api/friends/request/:userId` | Cancel a request I sent |
+| PUT | `/api/friends/request/:requestId` | Accept/reject (`action`) |
+| GET | `/api/friends/:userId/goals` | A friend's shared goals |
 | DELETE | `/api/friends/:userId` | Remove friend |
 
 ### Reminders
 | Method | Route | Description |
 |--------|-------|-------------|
-| GET | `/api/reminders` | Get all reminders |
-| POST | `/api/reminders` | Send reminder to friend |
-| PUT | `/api/reminders/:id/read` | Mark as read |
-| PUT | `/api/reminders/read-all` | Mark all as read |
+| GET | `/api/reminders?box=inbox\|sent&filter=all\|unread\|friends\|nudges` | List messages |
+| GET | `/api/reminders/unread-count` | Unread count |
+| POST | `/api/reminders` | Nudge or cheer a friend (`to`, optional `goalId` of their shared goal, `message`, `type`: `manual`/`encouragement`). Max 3 per friend per 24h |
+| PUT | `/api/reminders/:id/read` | Mark read (or unread with `{ isRead: false }`) |
+| PUT | `/api/reminders/read-all` | Mark all read |
+| DELETE | `/api/reminders/:id` | Delete from my inbox |
 
 ## Daily Reminders Cron Job
 
-Runs automatically at **8:00 AM** every day. For each user with notifications enabled who hasn't checked in today, it creates an automated reminder "from" one of their friends. This appears in the user's reminders inbox.
+Runs every minute. When it is a user's chosen `reminderTime` in their own timezone, and at least one active goal still needs a check-in for its current period, the job creates one private reminder for that day. A unique key prevents duplicates, even with several server instances.
 
 To test it manually:
 ```javascript
