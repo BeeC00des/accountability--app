@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext';
 import { Avatar, Icon, Switch, TextField } from '../components/ui';
 import { ChangePasswordDialog, EditProfileDialog } from '../components/ProfileDialogs';
 import AccentDialog from '../components/AccentDialog';
+import { savePreference } from '../lib/consent';
 import { ACCENT_PRESETS, accentHex, useTheme } from '../context/ThemeContext';
 import { apiError, formatDate, plural } from '../lib/format';
 
@@ -60,7 +61,7 @@ export default function Profile() {
       const response = await API.put('/auth/profile', reminders);
       const { friends, friendRequests, ...rest } = response.data.user;
       updateUser(rest);
-      try { window.localStorage.setItem('accountable-reminder-set', '1'); } catch { /* optional */ }
+      savePreference('accountable-reminder-set', '1');
       notify('Reminder settings saved');
     } catch (saveError) {
       setError(apiError(saveError, 'Could not save your settings.'));

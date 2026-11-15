@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { API, useAuth } from './AuthContext';
+import { savePreference } from '../lib/consent';
 
 /*
  * Appearance (light / dark / system) + white-label brand color.
@@ -72,7 +73,7 @@ export const paletteFor = (hex, mode) => {
 
 /* ---------- storage ---------- */
 const read = (key, fallback) => { try { return window.localStorage.getItem(key) || fallback; } catch { return fallback; } };
-const write = (key, value) => { try { window.localStorage.setItem(key, value); } catch { /* session only */ } };
+const write = savePreference; // respects the visitor's storage consent
 const systemMode = () => (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 
 const ThemeContext = createContext(null);

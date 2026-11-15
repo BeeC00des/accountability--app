@@ -1,5 +1,8 @@
 import React from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+// Global design system first, so page stylesheets (e.g. Landing.css) can override it.
+import './AppBase.css';
+import './App.css';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppProvider } from './context/AppContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -14,13 +17,21 @@ import Profile from './pages/Profile';
 import Vision from './pages/Vision';
 import Compete from './pages/Compete';
 import Community from './pages/Community';
-import './AppBase.css';
-import './App.css';
+import Landing from './pages/Landing';
+import Changelog from './pages/Changelog';
+import Privacy from './pages/Privacy';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <Spinner label="Loading Accountable" />;
   return user ? children : <Navigate to="/auth" replace />;
+};
+
+/** `/` shows the marketing landing page to visitors and sends signed-in users straight to their board. */
+const HomeRoute = () => {
+  const { user, loading } = useAuth();
+  if (loading) return <Spinner label="Loading Accountable" />;
+  return user ? <Navigate to="/board" replace /> : <Landing />;
 };
 
 const PublicRoute = ({ children }) => {
@@ -37,9 +48,11 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<PublicRoute><AuthPage /></PublicRoute>} />
-            <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-              {/* The vision board is home: it's the first thing people see. */}
-              <Route index element={<Navigate to="/board" replace />} />
+            <Route path="/" element={<HomeRoute />} />
+            <Route path="/changelog" element={<Changelog />} />
+            <Route path="/privacy" element={<Privacy />} />
+            {/* Signed-in app. The vision board is home: it's the first thing people see. */}
+            <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
               <Route path="board" element={<Vision />} />
               <Route path="today" element={<Today />} />
               <Route path="goals" element={<Goals />} />

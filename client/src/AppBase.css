@@ -360,7 +360,7 @@ button.list-item { width: 100%; border: 0; background: transparent; text-align: 
 .loading-state { display: grid; place-items: center; min-height: 50vh; }
 
 /* ---------- Sheets & dialogs ---------- */
-.scrim { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px; background: rgb(0 0 0 / .32); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); animation: fade var(--fast) var(--ease); }
+.scrim { text-align: left; position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px; background: rgb(0 0 0 / .32); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); animation: fade var(--fast) var(--ease); }
 .dialog {
   position: relative; display: flex; flex-direction: column; width: min(100%, 540px); min-width: min(100%, 280px); max-height: calc(100dvh - 48px);
   border-radius: var(--radius-xl); background: var(--surface); color: var(--label); box-shadow: var(--shadow-2), inset 0 0 0 1px var(--card-border);

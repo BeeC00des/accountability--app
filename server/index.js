@@ -13,6 +13,7 @@ const visionRoutes = require('./routes/vision');
 const leaderboardRoutes = require('./routes/leaderboard');
 const challengeRoutes = require('./routes/challenges');
 const supportRoutes = require('./routes/support');
+const feedbackRoutes = require('./routes/feedback');
 const { backfillActivities } = require('./services/activity');
 const { sendDailyReminders } = require('./services/reminderService');
 
@@ -41,6 +42,7 @@ app.use('/api/vision', visionRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/challenges', challengeRoutes);
 app.use('/api/support', supportRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 app.use('/api', (req, res) => res.status(404).json({ message: 'Not found.' }));
 

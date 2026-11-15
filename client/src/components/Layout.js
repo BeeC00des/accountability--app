@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import { Avatar, Icon, Menu } from './ui';
 import AccentDialog from './AccentDialog';
+import { savePreference } from '../lib/consent';
 
 // Board is the home page. `tab` marks the items shown in the phone tab bar (Inbox lives in the top bar).
 const NAV = [
@@ -13,8 +14,8 @@ const NAV = [
   { to: '/goals', label: 'Goals', icon: 'flag', tab: true },
   { to: '/friends', label: 'Friends', icon: 'group', tab: true },
   { to: '/compete', label: 'Compete', icon: 'emoji_events', tab: true },
-  { to: '/community', label: 'Community', icon: 'diversity_1', tab: true },
-  { to: '/inbox', label: 'Inbox', icon: 'notifications' }
+  { to: '/inbox', label: 'Inbox', icon: 'notifications' },
+  { to: '/community', label: 'Community', icon: 'diversity_1', tab: true }
 ];
 const SIDEBAR_KEY = 'accountable-sidebar-collapsed';
 const readCollapsed = () => { try { return window.localStorage.getItem(SIDEBAR_KEY) === '1'; } catch { return false; } };
@@ -32,7 +33,7 @@ export default function Layout() {
   useEffect(() => { document.getElementById('main-content')?.focus({ preventScroll: true }); window.scrollTo(0, 0); }, [location.pathname]);
 
   const toggleSidebar = () => setCollapsed(value => {
-    try { window.localStorage.setItem(SIDEBAR_KEY, value ? '0' : '1'); } catch { /* session only */ }
+    savePreference(SIDEBAR_KEY, value ? '0' : '1');
     return !value;
   });
   const signOut = () => { logout(); navigate('/auth'); };

@@ -596,3 +596,5 @@ a.chip { text-decoration: none; }
   .capital-card { padding: 18px 16px; }
   .gallery-count { display: none; }
 }
+.auth-back { position: absolute; top: 20px; left: 20px; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px 0 10px; border-radius: var(--radius-full); background: var(--surface); color: var(--label); box-shadow: var(--shadow-1); font: 600 14px/1 var(--font); text-decoration: none; }
+.auth-page { position: relative; }

@@ -7,11 +7,12 @@ import CheckInDialog from '../components/CheckInDialog';
 import NudgeDialog from '../components/NudgeDialog';
 import { apiError, dayKey, firstName, formatDate, plural, relativeTime } from '../lib/format';
 import { MOODS, periodLabel, periodWord, tileClass } from '../lib/goals';
+import { savePreference } from '../lib/consent';
 
 const SETUP_DISMISSED = 'accountable-setup-dismissed';
 const DAY_MS = 86400000;
 const readFlag = key => { try { return window.localStorage.getItem(key) === '1'; } catch { return false; } };
-const writeFlag = key => { try { window.localStorage.setItem(key, '1'); } catch { /* optional */ } };
+const writeFlag = key => savePreference(key, '1');
 const startOfDay = value => { const date = new Date(value); date.setHours(0, 0, 0, 0); return date; };
 
 /** Friendly mascot: a soft "sun" blob with a face. Decorative. */

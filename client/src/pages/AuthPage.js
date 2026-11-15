@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Icon, TextField } from '../components/ui';
 import { apiError } from '../lib/format';
@@ -11,7 +11,7 @@ export default function AuthPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const referralCode = (params.get('ref') || '').slice(0, 20);
-  const [mode, setMode] = useState(referralCode ? 'register' : 'login');
+  const [mode, setMode] = useState(referralCode || params.get('mode') === 'register' ? 'register' : 'login');
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
@@ -49,6 +49,7 @@ export default function AuthPage() {
 
   return (
     <main className="auth-page">
+      <Link to="/" className="auth-back state-layer"><Icon name="arrow_back" />Home</Link>
       <section className="auth-card" aria-labelledby="auth-title">
         <div className="auth-brand">
           <span className="auth-mark" aria-hidden="true"><Icon name="local_fire_department" filled /></span>
