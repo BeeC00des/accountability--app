@@ -78,7 +78,8 @@
 
 /* ---------- Page scaffolding ---------- */
 .page { width: 100%; max-width: var(--page-max); margin: 0 auto; padding: 8px 32px 56px; }
-.page-narrow { max-width: 860px; }
+/* Every feature page is 75% of the screen wide on desktop (never wider than the space beside the sidebar). */
+@media (min-width: 900px) { .page { max-width: 75vw; } }
 .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
 .page-header p { margin-top: 6px; }
 .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 4px 12px; }
@@ -614,7 +615,7 @@ a.chip { text-decoration: none; }
 .support-card:hover { box-shadow: var(--shadow-2), inset 0 0 0 1px var(--card-border); }
 .support-card .tile { width: 46px; height: 46px; border-radius: 14px; color: var(--on-lime); }
 .support-card-cta { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; color: var(--tint); }
-.capital-card { display: grid; gap: 16px; margin-bottom: 8px; padding: 22px; border-radius: var(--radius-xl); background: linear-gradient(135deg, #1b1d16, #2c3214); color: #f5f5f7; }
+.capital-card { display: grid; gap: 16px; margin-bottom: 8px; padding: 22px; border-radius: var(--radius-xl); background: linear-gradient(135deg, color-mix(in srgb, var(--lime) 6%, #18181a), color-mix(in srgb, var(--lime) 26%, #18181a)); color: #f5f5f7; }
 .capital-head { display: flex; align-items: flex-start; gap: 14px; }
 .capital-icon { display: grid; flex: 0 0 auto; place-items: center; width: 48px; height: 48px; border-radius: 16px; background: var(--yellow); color: var(--on-yellow); }
 .capital-copy { margin-top: 4px; color: rgb(245 245 247 / .72); }

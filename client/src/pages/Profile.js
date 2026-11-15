@@ -76,7 +76,7 @@ export default function Profile() {
   ];
 
   return (
-    <div className="page page-narrow">
+    <div className="page">
       <header className="page-header">
         <div>
           <h1 className="headline-medium">Profile</h1>

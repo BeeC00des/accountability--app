@@ -207,7 +207,7 @@ export default function Compete() {
   if (loading) return <Spinner label="Loading leaderboard" />;
 
   return (
-    <div className="page page-narrow">
+    <div className="page">
       <header className="page-header">
         <div>
           <h1 className="headline-medium">Up for <span className="italic-accent">a challenge?</span></h1>

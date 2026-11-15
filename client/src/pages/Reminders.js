@@ -94,7 +94,7 @@ export default function Inbox() {
   const unreadHere = items.filter(item => !item.isRead).length;
 
   return (
-    <div className="page page-narrow">
+    <div className="page">
       <header className="page-header">
         <div>
           <h1 className="headline-medium">Inbox</h1>

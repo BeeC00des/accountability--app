@@ -132,7 +132,7 @@ export default function Community() {
   };
 
   return (
-    <div className="page page-narrow">
+    <div className="page">
       <header className="page-header">
         <div>
           <h1 className="headline-medium">Stuck with your <span className="italic-accent">growth plan?</span></h1>
