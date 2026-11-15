@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
-import { useTheme } from '../context/ThemeContext';
+import { ACCENT_PRESETS, accentHex, useTheme } from '../context/ThemeContext';
 import { Avatar, Icon, Menu } from './ui';
 import AccentDialog from './AccentDialog';
 import { savePreference } from '../lib/consent';
@@ -23,7 +23,8 @@ const readCollapsed = () => { try { return window.localStorage.getItem(SIDEBAR_K
 export default function Layout() {
   const { user, logout } = useAuth();
   const { unread } = useApp();
-  const { mode, toggleTheme } = useTheme();
+  const { mode, toggleTheme, accent } = useTheme();
+  const accentLabel = ACCENT_PRESETS.find(preset => preset.value === accent)?.label || accentHex(accent).toUpperCase();
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [accentOpen, setAccentOpen] = useState(false);
   const navigate = useNavigate();
@@ -77,8 +78,12 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
-        <div className="sidebar-footer-note">
-          <span className="sidebar-label body-small">Imagine · Get inspired · Act</span>
+        <div className="sidebar-footer">
+          <button type="button" className="sidebar-item state-layer sidebar-theme" onClick={() => setAccentOpen(true)} aria-label={`Theme color: ${accentLabel}`} title={collapsed ? `Theme color · ${accentLabel}` : undefined}>
+            <span className="sidebar-icon"><Icon name="palette" /></span>
+            <span className="sidebar-label">Theme color</span>
+            <span className="sidebar-swatch" style={{ background: accentHex(accent) }} aria-hidden="true" />
+          </button>
         </div>
       </aside>
 
@@ -98,15 +103,19 @@ export default function Layout() {
           <button type="button" className="round-btn state-layer" onClick={toggleTheme} aria-label={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} title={mode === 'dark' ? 'Light mode' : 'Dark mode'}>
             <Icon name={mode === 'dark' ? 'light_mode' : 'dark_mode'} />
           </button>
+          {/* Phones and tablets have no sidebar, so the theme colour sits beside light/dark mode. */}
+          <button type="button" className="round-btn state-layer top-bar-accent" onClick={() => setAccentOpen(true)} aria-label={`Theme color: ${accentLabel}`} title="Theme color">
+            <Icon name="palette" /><span className="top-bar-swatch" style={{ background: accentHex(accent) }} aria-hidden="true" />
+          </button>
           <div className="top-bar-profile">
             <Menu
               label={`Account menu for ${user?.name || 'you'}`}
-              trigger={<Avatar name={user?.name} src={user?.avatar} />}
+              trigger={<Avatar self name={user?.name} src={user?.avatar} />}
               items={[
                 {
                   header: (
                     <>
-                      <Avatar name={user?.name} src={user?.avatar} />
+                      <Avatar self name={user?.name} src={user?.avatar} />
                       <span className="list-item-content">
                         <span className="title-small">{user?.name}</span>
                         <span className="body-small text-variant">{user?.email}</span>
@@ -117,7 +126,6 @@ export default function Layout() {
                 { divider: true },
                 { label: 'View profile', icon: 'person', onSelect: () => navigate('/profile') },
                 { label: 'Edit profile', icon: 'edit', onSelect: () => navigate('/profile?edit=1') },
-                { label: 'Theme color', icon: 'palette', onSelect: () => setAccentOpen(true) },
                 { label: 'Reminder settings', icon: 'schedule', onSelect: () => navigate('/profile#settings') },
                 { divider: true },
                 { label: 'Sign out', icon: 'logout', danger: true, onSelect: signOut }

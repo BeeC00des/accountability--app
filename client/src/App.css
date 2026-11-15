@@ -5,12 +5,51 @@
 
 /* ---------- App shell ---------- */
 .app-shell { display: flex; min-height: 100vh; background: var(--bg); }
+/* The app's neutral greys (page, switches, chips, inputs) carry a hint of the theme colour so everything blends. */
+.app-shell {
+  --bg: color-mix(in srgb, var(--lime) 13%, #f4f4f1);
+  --surface-2: color-mix(in srgb, var(--lime) 6%, #f7f8f2);
+  --surface-3: color-mix(in srgb, var(--lime) 12%, #eef0e6);
+  --fill: color-mix(in srgb, var(--lime) 24%, rgb(120 120 128 / .10));
+  --fill-2: color-mix(in srgb, var(--lime) 16%, rgb(120 120 128 / .06));
+}
+:root[data-theme='dark'] .app-shell {
+  --bg: color-mix(in srgb, var(--lime) 5%, #09090a);
+  --sidebar-bg: color-mix(in srgb, var(--lime) 6%, #111113);
+  --surface: color-mix(in srgb, var(--lime) 6%, #19191b);
+  --surface-2: color-mix(in srgb, var(--lime) 7%, #202022);
+  --surface-3: color-mix(in srgb, var(--lime) 9%, #2a2a2c);
+  --material: color-mix(in srgb, var(--lime) 6%, rgb(30 30 32 / .92));
+  --fill: color-mix(in srgb, var(--lime) 8%, rgb(255 255 255 / .10));
+  --fill-2: color-mix(in srgb, var(--lime) 6%, rgb(255 255 255 / .06));
+  --separator: color-mix(in srgb, var(--lime) 12%, rgb(255 255 255 / .09));
+  --card-border: color-mix(in srgb, var(--lime) 10%, rgb(255 255 255 / .05));
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .app-shell {
+    --bg: color-mix(in srgb, var(--lime) 5%, #09090a);
+    --sidebar-bg: color-mix(in srgb, var(--lime) 6%, #111113);
+    --surface: color-mix(in srgb, var(--lime) 6%, #19191b);
+    --surface-2: color-mix(in srgb, var(--lime) 7%, #202022);
+    --surface-3: color-mix(in srgb, var(--lime) 9%, #2a2a2c);
+    --material: color-mix(in srgb, var(--lime) 6%, rgb(30 30 32 / .92));
+    --fill: color-mix(in srgb, var(--lime) 8%, rgb(255 255 255 / .10));
+    --fill-2: color-mix(in srgb, var(--lime) 6%, rgb(255 255 255 / .06));
+    --separator: color-mix(in srgb, var(--lime) 12%, rgb(255 255 255 / .09));
+    --card-border: color-mix(in srgb, var(--lime) 10%, rgb(255 255 255 / .05));
+  }
+}
+/* Dark mode: the selected segment sits above its track, as on Apple platforms. */
+:root[data-theme='dark'] .app-shell :is(.segmented button:is([aria-pressed='true'], [aria-checked='true']), .tab[aria-selected='true']) { background: color-mix(in srgb, var(--lime) 10%, #3a3a3d); box-shadow: 0 2px 6px rgb(0 0 0 / .35); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .app-shell :is(.segmented button:is([aria-pressed='true'], [aria-checked='true']), .tab[aria-selected='true']) { background: color-mix(in srgb, var(--lime) 10%, #3a3a3d); box-shadow: 0 2px 6px rgb(0 0 0 / .35); }
+}
 .skip-link { position: fixed; top: 8px; left: 8px; z-index: 300; padding: 10px 16px; border-radius: var(--radius-full); background: var(--ink); color: var(--on-ink); font-weight: 600; text-decoration: none; transform: translateY(-300%); }
 .skip-link:focus { transform: none; }
 
 .sidebar { position: sticky; top: 0; display: flex; flex: 0 0 260px; flex-direction: column; gap: 6px; width: 260px; height: 100vh; padding: 20px 14px 14px; border-right: 1px solid var(--separator); background: var(--surface-2); }
 .sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; color: var(--label); text-decoration: none; }
-.brand-mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; background: linear-gradient(145deg, #e8f8a4, var(--lime-strong)); color: #1a2000; }
+.brand-mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; background: var(--brand-mark, linear-gradient(145deg, color-mix(in srgb, var(--lime) 55%, #ffffff), var(--lime))); color: var(--on-lime); }
 .brand-mark .icon { font-size: 22px; }
 .sidebar-cta { margin: 0 4px 16px; }
 .sidebar-nav { display: grid; gap: 2px; }
@@ -79,6 +118,8 @@
 .tile-yellow { --tile: linear-gradient(145deg, #fff0b5, #f4b73d); }
 .tile-lime { --tile: linear-gradient(145deg, #f1fbb8, #b9e33f); }
 .tile-teal { --tile: linear-gradient(145deg, #c4f4f2, #4dbac6); }
+/* In the app, every icon tile follows the dashboard theme colour. */
+.app-shell .tile { --tile: linear-gradient(145deg, color-mix(in srgb, var(--lime) 38%, #ffffff), var(--lime)); color: var(--on-lime); }
 
 /* ---------- Goal editor ---------- */
 .stepper { margin: 0 0 24px; }
@@ -250,7 +291,7 @@
 .auth-page { display: grid; align-content: center; justify-items: center; gap: 18px; min-height: 100vh; padding: 24px 16px; background: var(--hero); background-attachment: fixed; }
 .auth-card { width: 100%; max-width: 440px; padding: 36px 28px 28px; border-radius: var(--radius-xl); background: var(--surface); box-shadow: var(--shadow-2), inset 0 0 0 1px var(--card-border); }
 .auth-brand { display: grid; justify-items: center; gap: 6px; margin-bottom: 28px; text-align: center; }
-.auth-mark { display: grid; place-items: center; width: 64px; height: 64px; margin-bottom: 8px; border-radius: 20px; background: linear-gradient(145deg, #eefaa8, var(--lime-strong)); color: #1a2000; box-shadow: inset 0 1px 0 rgb(255 255 255 / .6); }
+.auth-mark { display: grid; place-items: center; width: 64px; height: 64px; margin-bottom: 8px; border-radius: 20px; background: var(--brand-mark, linear-gradient(145deg, color-mix(in srgb, var(--lime) 55%, #ffffff), var(--lime))); color: var(--on-lime); box-shadow: inset 0 1px 0 rgb(255 255 255 / .6); }
 .auth-mark .icon { font-size: 34px; }
 .password-field { position: relative; }
 .password-field .field-control { padding-right: 52px; }
@@ -373,10 +414,10 @@
 .chip-dot { width: 7px; height: 7px; margin-left: 2px; border-radius: 50%; background: var(--lime-strong); box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--ink) 25%, transparent); }
 .chip.selected .chip-dot { box-shadow: none; }
 
-.vision-board { --vb-bg: linear-gradient(170deg, #e2f597 0%, #eff9c4 45%, #fbfdf1 100%); --vb-text: #111111; --vb-sub: rgb(17 17 17 / .62); --vb-tile: rgb(255 255 255 / .7);
+.vision-board { --vb-bg: linear-gradient(170deg, color-mix(in srgb, var(--lime) 60%, #ffffff) 0%, color-mix(in srgb, var(--lime) 30%, #ffffff) 45%, color-mix(in srgb, var(--lime) 7%, #ffffff) 100%); --vb-text: #111111; --vb-sub: rgb(17 17 17 / .62); --vb-tile: rgb(255 255 255 / .7);
   padding: 24px; border-radius: var(--radius-xl); background: var(--vb-bg); color: var(--vb-text); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--card-border); }
 .vision-board.theme-cream { --vb-bg: linear-gradient(150deg, #f6efe2, #fffaf2); --vb-text: #2b2620; --vb-sub: rgb(43 38 32 / .6); }
-.vision-board.theme-midnight { --vb-bg: radial-gradient(120% 80% at 50% 0%, #3d4a12, #15170f 55%, #0b0c09); --vb-text: #f5f5f7; --vb-sub: rgb(245 245 247 / .62); --vb-tile: rgb(255 255 255 / .08); }
+.vision-board.theme-midnight { --vb-bg: radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--lime) 30%, #0e0f0c), #15170f 55%, #0b0c09); --vb-text: #f5f5f7; --vb-sub: rgb(245 245 247 / .62); --vb-tile: rgb(255 255 255 / .08); }
 .vision-board-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .vision-title-block { flex: 1; min-width: 220px; }
 .vision-title-input { width: 100%; padding: 4px 8px; margin-left: -8px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--vb-text); font: 700 32px/1.15 var(--font-display); letter-spacing: -.03em; outline: none; }
@@ -451,10 +492,24 @@
 
 /* ---------- Brand-balanced sidebar ---------- */
 .sidebar { background: var(--sidebar-bg, var(--surface-2)); border-right-color: color-mix(in srgb, var(--lime) 18%, var(--separator)); }
-.brand-mark { background: var(--brand-mark, linear-gradient(145deg, #e8f8a4, var(--lime-strong))); color: var(--on-lime); }
-.sidebar-item:hover { background: color-mix(in srgb, var(--lime) 16%, transparent); }
-.sidebar-footer-note { margin-top: auto; padding: 12px 10px 4px; border-top: 1px solid color-mix(in srgb, var(--lime) 18%, var(--separator)); color: var(--label-2); }
-.sidebar.collapsed .sidebar-footer-note { display: none; }
+.brand-mark { background: var(--brand-mark, linear-gradient(145deg, color-mix(in srgb, var(--lime) 55%, #ffffff), var(--lime))); color: var(--on-lime); }
+.sidebar-item:not(.active):hover { background: color-mix(in srgb, var(--lime) 22%, transparent); color: #000000; }
+.sidebar-item:not(.active):hover .icon { color: #000000; }
+/* Dark mode: black text needs a light surface, so the hover takes the theme colour. */
+:root[data-theme='dark'] .sidebar-item:not(.active):hover { background: var(--lime); color: var(--on-lime); }
+:root[data-theme='dark'] .sidebar-item:not(.active):hover .icon { color: var(--on-lime); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .sidebar-item:not(.active):hover { background: var(--lime); color: var(--on-lime); }
+  :root:not([data-theme='light']) .sidebar-item:not(.active):hover .icon { color: var(--on-lime); }
+}
+.sidebar-footer { margin-top: auto; padding-top: 10px; border-top: 1px solid color-mix(in srgb, var(--lime) 18%, var(--separator)); }
+.sidebar-theme { width: 100%; border: 0; background: transparent; cursor: pointer; text-align: left; }
+.sidebar-swatch { flex: 0 0 auto; width: 18px; height: 18px; border-radius: 50%; box-shadow: 0 0 0 2px var(--sidebar-bg, var(--surface)), 0 0 0 3px color-mix(in srgb, var(--label) 18%, transparent); }
+.sidebar.collapsed .sidebar-swatch { position: absolute; width: 10px; height: 10px; margin: 18px 0 0 18px; }
+.sidebar.collapsed .sidebar-theme { position: relative; }
+.top-bar-accent { position: relative; display: none; }
+.top-bar-swatch { position: absolute; right: 9px; bottom: 9px; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 2px var(--surface); }
+@media (max-width: 899px) { .top-bar-accent { display: inline-grid; } }
 
 /* ---------- Top bar: streak, inbox bell ---------- */
 .streak-pill .icon { color: var(--label-3); font-size: 20px; transition: color var(--fast) var(--ease), transform var(--medium) var(--spring); }
@@ -557,7 +612,7 @@ a.chip { text-decoration: none; }
 .support-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin: 0 0 24px; padding: 0; list-style: none; }
 .support-card { display: grid; align-content: start; gap: 8px; width: 100%; height: 100%; padding: 16px; border: 0; border-radius: var(--radius-lg); background: var(--surface); color: var(--label); text-align: left; cursor: pointer; box-shadow: var(--shadow-1), inset 0 0 0 1px var(--card-border); }
 .support-card:hover { box-shadow: var(--shadow-2), inset 0 0 0 1px var(--card-border); }
-.support-card .tile { width: 46px; height: 46px; border-radius: 14px; color: #111; }
+.support-card .tile { width: 46px; height: 46px; border-radius: 14px; color: var(--on-lime); }
 .support-card-cta { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; color: var(--tint); }
 .capital-card { display: grid; gap: 16px; margin-bottom: 8px; padding: 22px; border-radius: var(--radius-xl); background: linear-gradient(135deg, #1b1d16, #2c3214); color: #f5f5f7; }
 .capital-head { display: flex; align-items: flex-start; gap: 14px; }
@@ -598,3 +653,13 @@ a.chip { text-decoration: none; }
 }
 .auth-back { position: absolute; top: 20px; left: 20px; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px 0 10px; border-radius: var(--radius-full); background: var(--surface); color: var(--label); box-shadow: var(--shadow-1); font: 600 14px/1 var(--font); text-decoration: none; }
 .auth-page { position: relative; }
+
+/* Dark mode details: softer sidebar edge, and empty-state icons lit by the theme colour. */
+:root[data-theme='dark'] .app-shell .sidebar { border-right-color: var(--separator); }
+:root[data-theme='dark'] .app-shell .empty-state-icon { background: radial-gradient(120% 120% at 30% 0%, color-mix(in srgb, var(--lime) 30%, var(--surface-3)), var(--surface-2) 70%); box-shadow: inset 0 0 0 1px var(--card-border); }
+:root[data-theme='dark'] .app-shell .empty-state-icon .icon { color: var(--lime); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .app-shell .sidebar { border-right-color: var(--separator); }
+  :root:not([data-theme='light']) .app-shell .empty-state-icon { background: radial-gradient(120% 120% at 30% 0%, color-mix(in srgb, var(--lime) 30%, var(--surface-3)), var(--surface-2) 70%); box-shadow: inset 0 0 0 1px var(--card-border); }
+  :root:not([data-theme='light']) .app-shell .empty-state-icon .icon { color: var(--lime); }
+}

@@ -13,7 +13,7 @@ const RELEASES = [
       'Community: request a mentor, coach, counsellor, therapist or accountability buddy.',
       'Sponsored subscriptions for members who invite three or more people.',
       'Duolingo-style streaks — finishing a single step now keeps your streak alive.',
-      'Theme colors: make the dashboard yours with seven presets or any custom color.',
+      'Theme colours: make the dashboard yours with seven presets or any custom colour.',
       'A new landing page, changelog, privacy policy and consent preferences.'
     ]
   },

@@ -105,7 +105,7 @@ export function EditProfileDialog({ onClose }) {
 
       <div className="photo-editor">
         <button type="button" className="photo-editor-avatar state-layer" onClick={() => fileInput.current?.click()} aria-label={form.avatar ? 'Change photo' : 'Add photo'}>
-          <Avatar name={form.name || user?.name} src={form.avatar} size="xl" />
+          <Avatar self name={form.name || user?.name} src={form.avatar} size="xl" />
           <span className="photo-editor-badge" aria-hidden="true"><Icon name="photo_camera" filled /></span>
         </button>
         <div className="photo-editor-actions">

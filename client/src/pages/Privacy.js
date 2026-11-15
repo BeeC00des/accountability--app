@@ -24,7 +24,7 @@ const SECTIONS = [
   ]],
   ['Storage in your browser', [
     'Essential: a sign-in token so you stay logged in.',
-    'Preferences (optional): light/dark mode, theme color, sidebar layout and dismissed tips. You can turn these off any time in Consent Preferences in the footer.',
+    'Preferences (optional): light/dark mode, theme colour, sidebar layout and dismissed tips. You can turn these off any time in Consent Preferences in the footer.',
     'We don’t use advertising or third-party tracking cookies.'
   ]],
   ['Your choices', [

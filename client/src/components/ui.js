@@ -12,8 +12,9 @@ export const Icon = ({ name, filled = false, size, className = '', label }) => (
 );
 
 /** Profile photo when `src` is set, otherwise initials on a gradient (or an icon). */
-export const Avatar = ({ name, size = '', icon, src }) => (
-  <span className={`avatar${size ? ` avatar-${size}` : ''}${src ? ' has-photo' : ''}`} style={icon || src ? undefined : avatarTone(name)} aria-hidden="true">
+/** `self` marks the signed-in user's own avatar: it follows the dashboard theme colour instead of a name-based tone. */
+export const Avatar = ({ name, size = '', icon, src, self = false }) => (
+  <span className={`avatar${size ? ` avatar-${size}` : ''}${src ? ' has-photo' : ''}${self ? ' avatar-self' : ''}`} style={icon || src || self ? undefined : avatarTone(name)} aria-hidden="true">
     {src ? <img src={src} alt="" /> : icon ? <Icon name={icon} /> : initials(name)}
   </span>
 );

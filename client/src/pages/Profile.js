@@ -4,9 +4,7 @@ import { API, useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { Avatar, Icon, Switch, TextField } from '../components/ui';
 import { ChangePasswordDialog, EditProfileDialog } from '../components/ProfileDialogs';
-import AccentDialog from '../components/AccentDialog';
 import { savePreference } from '../lib/consent';
-import { ACCENT_PRESETS, accentHex, useTheme } from '../context/ThemeContext';
 import { apiError, formatDate, plural } from '../lib/format';
 
 const TIMEZONES = typeof Intl.supportedValuesOf === 'function'
@@ -28,8 +26,7 @@ export default function Profile() {
   const navigate = useNavigate();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
-  const [dialog, setDialog] = useState(null); // 'profile' | 'password' | 'accent'
-  const { accent } = useTheme();
+  const [dialog, setDialog] = useState(null); // 'profile' | 'password'
   const [reminders, setReminders] = useState({
     reminderTime: user?.reminderTime || '08:00',
     timezone: user?.timezone || browserTimezone() || 'UTC',
@@ -75,8 +72,7 @@ export default function Profile() {
     { icon: 'badge', label: 'Name', value: user?.name, onClick: () => setDialog('profile') },
     { icon: 'mail', label: 'Email', value: user?.email, onClick: () => setDialog('profile') },
     { icon: 'notes', label: 'Bio', value: user?.bio || 'Add a short bio', muted: !user?.bio, onClick: () => setDialog('profile') },
-    { icon: 'lock', label: 'Password', value: '••••••••', onClick: () => setDialog('password') },
-    { icon: 'palette', label: 'Theme color', value: ACCENT_PRESETS.find(preset => preset.value === accent)?.label || accentHex(accent).toUpperCase(), swatch: accentHex(accent), onClick: () => setDialog('accent') }
+    { icon: 'lock', label: 'Password', value: '••••••••', onClick: () => setDialog('password') }
   ];
 
   return (
@@ -91,7 +87,7 @@ export default function Profile() {
 
       <section className="card card-filled profile-hero" aria-label="Account summary">
         <button type="button" className="profile-photo state-layer" onClick={() => setDialog('profile')} aria-label={user?.avatar ? 'Change profile photo' : 'Add profile photo'}>
-          <Avatar name={user?.name} src={user?.avatar} size="xl" />
+          <Avatar self name={user?.name} src={user?.avatar} size="xl" />
           <span className="photo-editor-badge" aria-hidden="true"><Icon name="photo_camera" filled /></span>
         </button>
         <div className="list-item-content profile-identity">
@@ -174,7 +170,6 @@ export default function Profile() {
 
       {dialog === 'profile' && <EditProfileDialog onClose={() => setDialog(null)} />}
       {dialog === 'password' && <ChangePasswordDialog onClose={() => setDialog(null)} />}
-      {dialog === 'accent' && <AccentDialog onClose={() => setDialog(null)} />}
     </div>
   );
 }

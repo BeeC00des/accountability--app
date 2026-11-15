@@ -7,11 +7,6 @@ import { getConsent, setConsent } from '../lib/consent';
 import { apiError } from '../lib/format';
 import { Dialog, Icon, Switch, TextField } from './ui';
 
-const SECTIONS = [
-  { hash: 'how', label: 'How it works' },
-  { hash: 'features', label: 'Features' },
-  { hash: 'compete', label: 'Compete' }
-];
 const KINDS = [
   { value: 'idea', label: 'Idea', icon: 'lightbulb' },
   { value: 'bug', label: 'Problem', icon: 'bug_report' },
@@ -110,7 +105,7 @@ function ConsentDialog({ onClose }) {
 }
 
 /** Public site footer (landing, changelog, privacy): wordmark, links, accent switcher and feedback. */
-export default function SiteFooter({ onLanding = false }) {
+export default function SiteFooter() {
   const { accent, setAccent } = useTheme();
   const [dialog, setDialog] = useState(null); // 'feedback' | 'consent'
 
@@ -118,12 +113,6 @@ export default function SiteFooter({ onLanding = false }) {
     <footer className="landing-footer">
       <Link to="/" className="landing-wordmark" aria-label="Accountable home">account<span>able</span></Link>
       <p className="landing-footer-tagline">Growing is easier when someone’s cheering you on.</p>
-      <nav className="landing-footer-nav" aria-label="Footer">
-        {SECTIONS.map(section => (onLanding
-          ? <a key={section.hash} href={`#${section.hash}`}>{section.label}</a>
-          : <a key={section.hash} href={`/#${section.hash}`}>{section.label}</a>))}
-        <Link to="/auth">Sign in</Link>
-      </nav>
       <nav className="landing-footer-nav landing-footer-legal" aria-label="Legal">
         <Link to="/changelog">Changelog</Link>
         <Link to="/privacy">Privacy Policy</Link>

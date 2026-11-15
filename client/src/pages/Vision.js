@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { API } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
+import { accentHex, useTheme } from '../context/ThemeContext';
 import { ConfirmDialog, Dialog, EmptyState, ErrorBanner, Icon, Menu, Spinner, TextField } from '../components/ui';
 import { apiError, plural } from '../lib/format';
 import GalleryDialog from '../components/GalleryDialog';
@@ -148,6 +149,7 @@ function WordsDialog({ item, onClose, onSave }) {
 /* ---------- Download / print ---------- */
 function DownloadDialog({ board, onClose }) {
   const { notify } = useApp();
+  const accent = accentHex(useTheme().accent);
   const [formatValue, setFormatValue] = useState('print-a4');
   const [images, setImages] = useState(null);
   const [preview, setPreview] = useState('');
@@ -163,10 +165,10 @@ function DownloadDialog({ board, onClose }) {
   useEffect(() => {
     if (!images) return undefined;
     let alive = true;
-    renderBoard({ board, format, images, scale: 420 / Math.max(format.width, format.height) })
+    renderBoard({ board, format, images, accent, scale: 420 / Math.max(format.width, format.height) })
       .then(canvas => { if (alive) setPreview(canvas.toDataURL('image/png')); });
     return () => { alive = false; };
-  }, [board, format, images]);
+  }, [board, format, images, accent]);
 
   const missing = images ? board.items.filter(item => item.type === 'image' && !images.has(item._id)).length : 0;
   const filename = `vision-${board.year}-${board.period}-${format.value}.png`;
@@ -174,7 +176,7 @@ function DownloadDialog({ board, onClose }) {
   const run = async mode => {
     setBusy(mode);
     try {
-      const canvas = await renderBoard({ board, format, images });
+      const canvas = await renderBoard({ board, format, images, accent });
       const blob = await canvasToBlob(canvas);
       if (mode === 'print') await printBlob(blob, format.print.size);
       else { downloadBlob(blob, filename); notify(`Saved ${filename}`); }

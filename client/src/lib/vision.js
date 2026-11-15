@@ -27,10 +27,11 @@ export const rangeLabel = (year, value) => {
 export const defaultTitle = (year, value) => (value === 'year' ? `My ${year} vision` : `${periodOf(value).short} ${year} vision`);
 
 /* ---------- Themes & words colors (shared by the board UI and the export) ---------- */
+// 'lime' is the stored value for the board theme that follows the dashboard theme colour (kept for existing boards).
 export const THEMES = [
-  { value: 'lime', label: 'Lime', swatch: 'linear-gradient(160deg, #e2f597, #f6fbe2)' },
+  { value: 'lime', label: 'Theme color', swatch: 'linear-gradient(160deg, color-mix(in srgb, var(--lime) 62%, #ffffff), color-mix(in srgb, var(--lime) 14%, #ffffff))' },
   { value: 'cream', label: 'Cream', swatch: 'linear-gradient(160deg, #f6efe2, #fffaf2)' },
-  { value: 'midnight', label: 'Midnight', swatch: 'radial-gradient(circle at 50% 0%, #3d4a12, #0e0f0c 70%)' }
+  { value: 'midnight', label: 'Midnight', swatch: 'radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--lime) 30%, #0e0f0c), #0e0f0c 70%)' }
 ];
 export const WORD_COLORS = [
   { value: 'lime', label: 'Lime', bg: '#d8f36a', fg: '#1a2000' },
@@ -95,10 +96,17 @@ const loadItemImage = async item => {
 /* ---------- Collage renderer ---------- */
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", Inter, "Segoe UI", sans-serif';
 
+/** Mixes `hex` with `target` (weight = share of `hex`), for canvas colours that follow the theme. */
+const mixHex = (hex, target, weight) => {
+  const rgb = value => [1, 3, 5].map(index => parseInt(value.slice(index, index + 2), 16));
+  const [a, b] = [rgb(hex), rgb(target)];
+  return `#${a.map((value, index) => Math.round(value * weight + b[index] * (1 - weight)).toString(16).padStart(2, '0')).join('')}`;
+};
+
 const THEME_PAINT = {
-  lime: { text: '#111111', sub: 'rgba(17,17,17,.62)', paint: (ctx, w, h) => { const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#e2f597'); g.addColorStop(0.55, '#eff9c4'); g.addColorStop(1, '#fbfdf1'); return g; } },
+  lime: { text: '#111111', sub: 'rgba(17,17,17,.62)', paint: (ctx, w, h, accent) => { const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, mixHex(accent, '#ffffff', 0.6)); g.addColorStop(0.55, mixHex(accent, '#ffffff', 0.3)); g.addColorStop(1, mixHex(accent, '#ffffff', 0.07)); return g; } },
   cream: { text: '#2b2620', sub: 'rgba(43,38,32,.6)', paint: (ctx, w, h) => { const g = ctx.createLinearGradient(0, 0, w, h); g.addColorStop(0, '#f6efe2'); g.addColorStop(1, '#fffaf2'); return g; } },
-  midnight: { text: '#f5f5f7', sub: 'rgba(245,245,247,.62)', paint: (ctx, w, h) => { const g = ctx.createRadialGradient(w / 2, 0, 0, w / 2, 0, Math.max(w, h) * 0.9); g.addColorStop(0, '#3d4a12'); g.addColorStop(0.55, '#15170f'); g.addColorStop(1, '#0b0c09'); return g; } }
+  midnight: { text: '#f5f5f7', sub: 'rgba(245,245,247,.62)', paint: (ctx, w, h, accent) => { const g = ctx.createRadialGradient(w / 2, 0, 0, w / 2, 0, Math.max(w, h) * 0.9); g.addColorStop(0, mixHex(accent, '#0e0f0c', 0.3)); g.addColorStop(0.55, '#15170f'); g.addColorStop(1, '#0b0c09'); return g; } }
 };
 
 const roundRect = (ctx, x, y, w, h, r) => {
@@ -140,7 +148,7 @@ const chooseGrid = (count, width, height, gap, target) => {
  * Draws the board as a collage on a canvas.
  * `scale` < 1 renders a quick preview with the identical layout.
  */
-export async function renderBoard({ board, format, scale = 1, images }) {
+export async function renderBoard({ board, format, scale = 1, images, accent = '#d8f36a' }) {
   const width = Math.round(format.width * scale);
   const height = Math.round(format.height * scale);
   const canvas = document.createElement('canvas');
@@ -155,7 +163,7 @@ export async function renderBoard({ board, format, scale = 1, images }) {
 
   if (document.fonts?.ready) await document.fonts.ready;
 
-  ctx.fillStyle = theme.paint(ctx, width, height);
+  ctx.fillStyle = theme.paint(ctx, width, height, /^#[0-9a-f]{6}$/i.test(accent) ? accent : '#d8f36a');
   ctx.fillRect(0, 0, width, height);
 
   // Header (title + period). On phone wallpapers it sits at the bottom, clear of the lock-screen clock.

@@ -208,7 +208,7 @@ export default function Friends() {
   if (loading) return <Spinner label="Loading friends" />;
 
   return (
-    <div className="page page-narrow">
+    <div className="page">
       <header className="page-header">
         <div>
           <h1 className="headline-medium">Friends</h1>
