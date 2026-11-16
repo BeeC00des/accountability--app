@@ -385,8 +385,7 @@ export default function Vision() {
     <div className="page vision-page">
       <header className="page-header">
         <div>
-          <h1 className="headline-medium">Imagine your future<span className="italic-accent">,</span></h1>
-          <p className="body-large text-variant">get inspired <span className="italic-accent">and act.</span></p>
+          <h1 className="headline-medium">Imagine your future<span className="italic-accent">.</span></h1>
         </div>
         <button type="button" className="btn btn-outlined state-layer" onClick={() => setDialog({ type: 'download' })} disabled={!items.length}><Icon name="download" />Download</button>
       </header>

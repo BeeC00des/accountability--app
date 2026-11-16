@@ -86,7 +86,6 @@ export default function AuthPage() {
           </div>
         </form>
       </section>
-      <p className="auth-footer body-small text-variant">Small steps. Meaningful progress.</p>
     </main>
   );
 }

@@ -932,3 +932,13 @@ button.streak-pill { border: 0; cursor: pointer; }
   .app-shell.sidebar-is-collapsed { padding-left: 84px; }
   .app-shell > .sidebar { position: fixed; top: 0; bottom: 0; left: 0; z-index: 40; height: 100vh; height: 100dvh; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 }
+
+/* Signed-in app: the page behind the shell (seen when scrolling past the ends) matches the tinted background. */
+html:has(.app-shell), body:has(.app-shell) { background: color-mix(in srgb, var(--lime) 13%, #f4f4f1); }
+:root[data-theme='dark']:has(.app-shell), :root[data-theme='dark'] body:has(.app-shell) { background: color-mix(in srgb, var(--lime) 5%, #09090a); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']):has(.app-shell), :root:not([data-theme='light']) body:has(.app-shell) { background: color-mix(in srgb, var(--lime) 5%, #09090a); }
+}
+
+/* Today: a little more breathing room between the streak/calendar board and the report */
+.today-page .report-card { margin-top: 56px; }
