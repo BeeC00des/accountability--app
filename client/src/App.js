@@ -23,20 +23,20 @@ import Privacy from './pages/Privacy';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return <Spinner label="Loading Accountable" />;
+  if (loading) return <Spinner label="Loading accounTable" />;
   return user ? children : <Navigate to="/auth" replace />;
 };
 
 /** `/` shows the marketing landing page to visitors and sends signed-in users straight to their board. */
 const HomeRoute = () => {
   const { user, loading } = useAuth();
-  if (loading) return <Spinner label="Loading Accountable" />;
+  if (loading) return <Spinner label="Loading accounTable" />;
   return user ? <Navigate to="/board" replace /> : <Landing />;
 };
 
 const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return <Spinner label="Loading Accountable" />;
+  if (loading) return <Spinner label="Loading accounTable" />;
   return user ? <Navigate to="/board" replace /> : children;
 };
 
@@ -58,7 +58,8 @@ export default function App() {
               <Route path="goals" element={<Goals />} />
               <Route path="friends" element={<Friends />} />
               <Route path="inbox" element={<Inbox />} />
-              <Route path="compete" element={<Compete />} />
+              <Route path="challenge" element={<Compete />} />
+              <Route path="compete" element={<Navigate to="/challenge" replace />} />
               <Route path="community" element={<Community />} />
               <Route path="vision" element={<Navigate to="/board" replace />} />
               <Route path="profile" element={<Profile />} />

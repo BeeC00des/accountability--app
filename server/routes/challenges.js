@@ -140,7 +140,7 @@ router.post('/', [
       startKey: startDate, endKey: shiftKey(startDate, days - 1),
       startAt: zonedMidnight(startDate, timezone), endAt: zonedMidnight(shiftKey(startDate, days), timezone)
     });
-    await notify(req.user._id, opponentId, `🏁 ${req.user.name} challenged you: “${title}” — ${days} days from ${startDate}.${reward ? ` Reward: ${reward}.` : ''} Accept it in Compete.`);
+    await notify(req.user._id, opponentId, `🏁 ${req.user.name} challenged you: “${title}” — ${days} days from ${startDate}.${reward ? ` Reward: ${reward}.` : ''} Accept it in Challenge.`);
     await challenge.populate([{ path: 'challenger', select: 'name avatar streak' }, { path: 'opponent', select: 'name avatar streak' }]);
     res.status(201).json({ message: 'Challenge sent.', challenge: await present(challenge, req.user._id) });
   } catch (error) {

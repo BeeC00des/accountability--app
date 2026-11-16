@@ -107,6 +107,11 @@ const userSchema = new mongoose.Schema({
   premiumRequestedAt: {
     type: Date,
     default: null
+  },
+  // The year the streak counter is showing (X/365). When a new year starts, the user flips it over.
+  streakYear: {
+    type: Number,
+    default: null
   }
 }, {
   timestamps: true

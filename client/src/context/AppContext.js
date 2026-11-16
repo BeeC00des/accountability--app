@@ -9,11 +9,13 @@ const SNACK_MS = 4500;
  * App-wide UI state:
  *  - notify(message, { actionLabel, onAction }) shows an M3 snackbar
  *  - unread / refreshUnread keep the Inbox badge in sync from any page
+ *  - streakOpen / setStreakOpen show the streak dialog from any page
  */
 export const AppProvider = ({ children }) => {
   const { user } = useAuth();
   const [snack, setSnack] = useState(null);
   const [unread, setUnread] = useState(0);
+  const [streakOpen, setStreakOpen] = useState(false);
   const timer = useRef(null);
 
   const dismiss = useCallback(() => { clearTimeout(timer.current); setSnack(null); }, []);
@@ -37,7 +39,7 @@ export const AppProvider = ({ children }) => {
     return () => { clearInterval(interval); window.removeEventListener('focus', onFocus); };
   }, [user, refreshUnread]);
 
-  const value = useMemo(() => ({ notify, unread, setUnread, refreshUnread }), [notify, unread, refreshUnread]);
+  const value = useMemo(() => ({ notify, unread, setUnread, refreshUnread, streakOpen, setStreakOpen }), [notify, unread, refreshUnread, streakOpen]);
 
   return (
     <AppContext.Provider value={value}>

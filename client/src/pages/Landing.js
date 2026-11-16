@@ -16,7 +16,7 @@ import './Landing.css';
 const NAV = [
   { href: '#how', label: 'How it works' },
   { href: '#features', label: 'Features' },
-  { href: '#compete', label: 'Compete' }
+  { href: '#compete', label: 'Challenge' }
 ];
 
 /** Two-colour title: `lead` in the label colour, `accent` in the theme colour, optional marker underline. */
@@ -67,7 +67,7 @@ const LEADERS = [
 ];
 
 const FAQ = [
-  { q: 'Is Accountable free?', a: 'Yes. Vision boards, goals, streaks, friends and challenges are all free.' },
+  { q: 'Is accounTable free?', a: 'Yes. Vision boards, goals, streaks, friends and challenges are all free.' },
   { q: 'Do I need a Pinterest account?', a: 'No. Browse the featured gallery, paste any public pin link or upload your own pictures. If you do use Pinterest, you can add your own public boards too.' },
   { q: 'How do streaks work?', a: 'Finish at least one step or one check-in on a given day and that day counts. Your streak is the number of days in a row you’ve shown up.' },
   { q: 'Can I print my vision board or use it as a wallpaper?', a: 'Yes. Download a 300 dpi A4 print, a 4K desktop wallpaper, or a lock screen for your phone or tablet in one tap.' },
@@ -89,7 +89,7 @@ function Phone({ children, className = '', dark = false }) {
 
 const PhoneAppBar = () => (
   <div className="lt-appbar">
-    <span className="lt-appbar-brand"><span className="lt-ring" />accountable</span>
+    <span className="lt-appbar-brand"><span className="lt-ring" />accounTable</span>
     <Icon name="notifications" />
   </div>
 );
@@ -97,6 +97,56 @@ const PhoneAppBar = () => (
 const PhoneDock = () => (
   <div className="lt-dock"><span className="lt-dock-add"><Icon name="add" /></span><span className="lt-dock-me"><Icon name="person" /></span></div>
 );
+
+/** Browser window with the web app's Today page — neutral UI with touches of the theme colour. */
+function WebAppMock({ year }) {
+  const bars = [3, 5, 2, 6, 4, 7, 5];
+  const nav = [['auto_awesome_mosaic', 'Board'], ['today', 'Today'], ['flag', 'Goals'], ['group', 'Friends'], ['emoji_events', 'Challenge']];
+  return (
+    <div className="lt-browser">
+      <div className="lt-browser-bar">
+        <span className="lt-browser-dots"><span /><span /><span /></span>
+        <span className="lt-browser-url"><Icon name="lock" />accountable.app/today</span>
+      </div>
+      <div className="lt-web">
+        <aside className="lt-web-side">
+          <span className="lt-web-brand"><span className="lt-web-mark"><Icon name="local_fire_department" filled /></span>accounTable</span>
+          <span className="lt-web-cta"><Icon name="add" />Add vision board</span>
+          {nav.map(([icon, label]) => (
+            <span key={label} className={`lt-web-nav${label === 'Today' ? ' on' : ''}`}><Icon name={icon} filled={label === 'Today'} />{label}</span>
+          ))}
+        </aside>
+        <div className="lt-web-main">
+          <div className="lt-web-hero">
+            <span className="lt-web-date">Monday, 4 January</span>
+            <strong>Ada, <em>you showed up</em> today.</strong>
+            <span className="lt-web-pill">Review your goals<span><Icon name="keyboard_double_arrow_right" /></span></span>
+          </div>
+          <div className="lt-web-row">
+            <div className="lt-web-card">
+              <span className="lt-web-label">Streak</span>
+              <strong><Icon name="local_fire_department" filled className="lt-web-flame" />9 days</strong>
+            </div>
+            <div className="lt-web-card">
+              <span className="lt-web-label">{year} counter</span>
+              <strong className="lt-web-flip"><span>4</span><span>8</span><small>/365</small></strong>
+            </div>
+          </div>
+          <div className="lt-web-card lt-web-chart">
+            <span className="lt-web-label">Check-ins this week</span>
+            <span className="lt-web-bars">{bars.map((value, index) => <span key={index} style={{ height: `${(value / 7) * 100}%` }} className={index === 5 ? 'peak' : ''} />)}</span>
+          </div>
+        </div>
+        <div className="lt-web-aside">
+          <div className="lt-web-card lt-web-month"><strong>2/2</strong><span className="lt-web-label">check-ins today</span><span className="lt-web-chip">100% completion</span></div>
+          <div className="lt-web-card lt-web-cal">
+            {Array.from({ length: 21 }, (_, index) => <span key={index} className={[1, 2, 3, 5, 6, 8, 9, 10, 12, 13].includes(index) ? 'done' : index === 14 ? 'today' : ''} />)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** Decorative zig-zag drawn behind the story cards. */
 const Zigzag = () => (
@@ -152,7 +202,7 @@ export default function Landing() {
 
   useEffect(() => {
     const previous = document.title;
-    document.title = 'Accountable — Imagine your future, get inspired and act';
+    document.title = 'accounTable — Imagine your future, get inspired and act';
     return () => { document.title = previous; };
   }, []);
 
@@ -197,9 +247,9 @@ export default function Landing() {
       {/* Floating pill navigation */}
       <header className="landing-header">
         <div className="landing-container landing-header-inner">
-          <a href="#top" className="landing-brand" aria-label="Accountable home">
+          <a href="#top" className="landing-brand" aria-label="accounTable home">
             <span className="brand-mark" aria-hidden="true"><Icon name="local_fire_department" filled /></span>
-            <span className="title-medium">Accountable</span>
+            <span className="title-medium">accounTable</span>
           </a>
           <nav className="landing-nav" aria-label="Main">
             {NAV.map(item => <a key={item.href} href={item.href} className="landing-nav-link">{item.label}</a>)}
@@ -245,6 +295,7 @@ export default function Landing() {
 
             <div className="lt-hero-visual" aria-hidden="true">
               <span className="lt-orb" />
+              <WebAppMock year={year} />
               <Phone className="lt-hero-phone">
                 <PhoneAppBar />
                 <div className="lt-card lt-card-lavender lt-card-big">
@@ -332,7 +383,7 @@ export default function Landing() {
             <div className="lt-features">
               <ul className="lt-feature-list" role="list">{FEATURES_LEFT.map(featureCard)}</ul>
               <div className="lt-features-phone" aria-hidden="true">
-                <Phone dark>
+                <Phone className="lt-phone-theme">
                   <div className="lt-checkin">
                     <span className="lt-close"><Icon name="close" /></span>
                     <strong>Check-in</strong>
@@ -354,7 +405,7 @@ export default function Landing() {
           <div className="landing-container lt-center">
             <Eyebrow>Built for</Eyebrow>
             <Title id="people-heading" lead="Every kind of" accent="goal." />
-            <p className="lt-sub">A few examples of how people use Accountable. Tap a face to read their story.</p>
+            <p className="lt-sub">A few examples of how people use accounTable. Tap a face to read their story.</p>
           </div>
           <div className="landing-container lt-people-stage">
             <div className="lt-people-picks" role="group" aria-label="Choose an example">

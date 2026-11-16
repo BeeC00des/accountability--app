@@ -6,10 +6,13 @@ import { Avatar, ErrorBanner, Icon, Spinner } from '../components/ui';
 import CheckInDialog from '../components/CheckInDialog';
 import NudgeDialog from '../components/NudgeDialog';
 import ReportCard from '../components/ReportCard';
+import GoalCelebration from '../components/GoalCelebration';
+import { FlipNumber } from '../components/StreakDialog';
 import { apiError, dayKey, firstName, formatDate, plural, relativeTime } from '../lib/format';
 import { MOODS, periodLabel, periodWord, tileClass } from '../lib/goals';
 import { savePreference } from '../lib/consent';
 
+const WINS_KEY = 'accountable-celebrated-goals';
 const SETUP_DISMISSED = 'accountable-setup-dismissed';
 const DAY_MS = 86400000;
 const readFlag = key => { try { return window.localStorage.getItem(key) === '1'; } catch { return false; } };
@@ -76,7 +79,10 @@ function MonthCalendar({ completedDays, monthStart }) {
 
 export default function Today() {
   const { user, updateUser } = useAuth();
-  const { notify } = useApp();
+  const { notify, streakOpen, setStreakOpen } = useApp();
+  const [yearCounter, setYearCounter] = useState(null);
+  const [completedGoals, setCompletedGoals] = useState([]);
+  const [dismissedWins, setDismissedWins] = useState(() => { try { return JSON.parse(window.localStorage.getItem(WINS_KEY) || '[]'); } catch { return []; } });
   const navigate = useNavigate();
   const [goals, setGoals] = useState([]);
   const [friends, setFriends] = useState([]);
@@ -91,11 +97,13 @@ export default function Today() {
   const load = useCallback(async () => {
     setError('');
     try {
-      const [goalsResponse, friendsResponse, inboxResponse] = await Promise.all([
+      const [goalsResponse, friendsResponse, inboxResponse, doneResponse] = await Promise.all([
         API.get('/goals', { params: { status: 'active' } }),
         API.get('/friends'),
-        API.get('/reminders', { params: { filter: 'unread' } })
+        API.get('/reminders', { params: { filter: 'unread' } }),
+        API.get('/goals', { params: { status: 'completed' } }).catch(() => ({ data: { goals: [] } }))
       ]);
+      setCompletedGoals(doneResponse.data.goals || []);
       setGoals(goalsResponse.data.goals || []);
       setFriends(friendsResponse.data.friends || []);
       setInbox((inboxResponse.data.reminders || []).slice(0, 3));
@@ -106,6 +114,25 @@ export default function Today() {
     }
   }, []);
   useEffect(() => { load(); }, [load]);
+  // Goals achieved in the last week that haven't been dismissed yet.
+  const wins = useMemo(() => {
+    const seen = new Set();
+    return [...goals, ...completedGoals].filter(goal => {
+      if (!goal.achievedAt || seen.has(goal._id) || dismissedWins.includes(goal._id)) return false;
+      seen.add(goal._id);
+      return Date.now() - new Date(goal.achievedAt).getTime() < 7 * 86400000;
+    }).sort((a, b) => new Date(b.achievedAt) - new Date(a.achievedAt));
+  }, [goals, completedGoals, dismissedWins]);
+  const dismissWin = id => setDismissedWins(current => {
+    const next = [...current, id].slice(-50);
+    try { window.localStorage.setItem(WINS_KEY, JSON.stringify(next)); } catch { /* shows again next visit */ }
+    return next;
+  });
+  // Year counter (X/365) — refreshed when the streak dialog closes, in case the year was flipped.
+  useEffect(() => {
+    if (streakOpen) return;
+    API.get('/streaks').then(response => setYearCounter(response.data)).catch(() => {});
+  }, [streakOpen, goals]);
 
   const replaceGoal = updated => setGoals(current => current.map(goal => (goal._id === updated._id ? updated : goal)));
 
@@ -147,15 +174,6 @@ export default function Today() {
     return { monthStart, completedDays, expected, achieved, rate: expected ? Math.round((achieved / expected) * 100) : 0 };
   }, [goals]);
 
-  // The next unfinished step across goals, for the "small change" card.
-  const nextStep = useMemo(() => {
-    for (const goal of goals) {
-      const todo = (goal.todos || []).find(item => !item.done);
-      if (todo) return { goal, todo };
-    }
-    return null;
-  }, [goals]);
-
   const setupSteps = [
     { done: goals.length > 0, label: 'Create your first goal', detail: 'Something small you can check in on.', to: '/goals?new=1', icon: 'flag' },
     { done: friends.length > 0, label: 'Add an accountability partner', detail: 'Friends can nudge and cheer you on.', to: '/friends?tab=add', icon: 'person_add' },
@@ -184,6 +202,7 @@ export default function Today() {
 
       <div className="today-grid">
         <div className="today-main">
+          {wins.slice(0, 2).map(goal => <GoalCelebration key={goal._id} goal={goal} name={name} onDismiss={() => dismissWin(goal._id)} />)}
           <section className="hero" aria-labelledby="hero-title">
             <p className="hero-date label-medium">{formatDate(new Date(), { weekday: 'long', month: 'long', day: 'numeric' })}</p>
             <Mascot />
@@ -261,20 +280,62 @@ export default function Today() {
             </section>
           )}
 
-          {goals.length > 0 && (
-            <Link to="/goals" className="impact-card state-layer">
-              <span className="impact-icon" aria-hidden="true"><Icon name={nextStep ? 'bolt' : 'checklist'} filled /></span>
-              <span className="list-item-content">
-                <span className="title-small">{nextStep ? `Next: ${nextStep.todo.title}` : 'Small change, big impact'}</span>
-                <span className="body-small impact-sub">
-                  {nextStep
-                    ? `${nextStep.goal.title} · ${nextStep.goal.todoProgress.done}/${nextStep.goal.todoProgress.total} steps achieved`
-                    : 'Break a goal into small steps to keep moving.'}
-                </span>
-              </span>
-              <Icon name="chevron_right" />
-            </Link>
-          )}
+          {/* Your circle with the inbox beside it */}
+          <div className="today-pair">
+            <section className="card section-card" aria-labelledby="circle-title">
+              <div className="section-head">
+                <h2 id="circle-title" className="title-medium">Your circle</h2>
+                <Link to="/friends" className="see-all">See all</Link>
+              </div>
+              {friends.length === 0 ? (
+                <div className="section-empty-block">
+                  <p className="body-medium text-variant">Accountability works better together.</p>
+                  <Link to="/friends?tab=add" className="btn btn-tonal state-layer"><Icon name="person_add" />Add a friend</Link>
+                </div>
+              ) : needNudge.length === 0 ? (
+                <p className="body-medium text-variant section-empty"><Icon name="verified" filled className="text-primary" />Everyone has checked in today.</p>
+              ) : (
+                <ul className="list" role="list">
+                  {needNudge.map(friend => (
+                    <li key={friend._id} className="list-item">
+                      <Avatar name={friend.name} src={friend.avatar} />
+                      <span className="list-item-content">
+                        <span className="list-item-headline">{friend.name}</span>
+                        <span className="list-item-supporting">Last check-in {relativeTime(friend.lastCheckIn).toLowerCase()}</span>
+                      </span>
+                      <button type="button" className="btn btn-tonal btn-sm state-layer" onClick={() => setNudgeFriend(friend)} disabled={friend.nudgesSentToday >= 3} title={friend.nudgesSentToday >= 3 ? 'Daily limit reached' : undefined}>Nudge</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+            <section className="card section-card" aria-labelledby="inbox-title">
+              <div className="section-head">
+                <h2 id="inbox-title" className="title-medium">New in inbox</h2>
+                <Link to="/inbox" className="see-all">See all</Link>
+              </div>
+              {inbox.length === 0 ? (
+                <p className="body-medium text-variant section-empty"><Icon name="mark_email_read" className="text-primary" />You’re all caught up.</p>
+              ) : (
+                <ul className="list" role="list">
+                  {inbox.map(reminder => {
+                    const automated = reminder.type === 'automated';
+                    return (
+                      <li key={reminder._id}>
+                        <button type="button" className="list-item three-line state-layer" onClick={() => navigate('/inbox')}>
+                          <Avatar name={reminder.from?.name} icon={automated ? 'alarm' : reminder.type === 'encouragement' ? 'celebration' : undefined} size="sm" />
+                          <span className="list-item-content">
+                            <span className="list-item-overline">{automated ? 'Daily reminder' : reminder.from?.name || 'A friend'} · {relativeTime(reminder.createdAt)}</span>
+                            <span className="list-item-supporting clamp-2">{reminder.message}</span>
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          </div>
         </div>
 
         <aside className="today-side">
@@ -289,6 +350,14 @@ export default function Today() {
                   ? `🔥 ${plural(user.streak, 'day')} streak — finish one step or check-in to keep it`
                   : '🔥 Finish one step or check-in to start a streak'}
             </p>
+            {yearCounter && (
+              <button type="button" className={`year-chip state-layer${yearCounter.needsFlip ? ' needs-flip' : ''}`} onClick={() => setStreakOpen(true)} aria-label={yearCounter.needsFlip ? `New year: flip your counter to ${yearCounter.current.year}` : `${yearCounter.counter.activeDays} of ${yearCounter.counter.daysInYear} days in ${yearCounter.counter.year}. Open your streak.`}>
+                <FlipNumber value={yearCounter.counter.activeDays} className="flip-sm" />
+                <span className="year-chip-of">/{yearCounter.counter.daysInYear}</span>
+                <span className="year-chip-label">{yearCounter.needsFlip ? `🎆 Flip to ${yearCounter.current.year}` : `days in ${yearCounter.counter.year}`}</span>
+                <Icon name="chevron_right" />
+              </button>
+            )}
           </section>
 
           <section className="card calendar-card" aria-labelledby="calendar-title">
@@ -299,64 +368,19 @@ export default function Today() {
             <MonthCalendar completedDays={month.completedDays} monthStart={month.monthStart} />
           </section>
 
-          <section className="card section-card" aria-labelledby="circle-title">
-            <div className="section-head">
-              <h2 id="circle-title" className="title-medium">Your circle</h2>
-              <Link to="/friends" className="see-all">See all</Link>
-            </div>
-            {friends.length === 0 ? (
-              <div className="section-empty-block">
-                <p className="body-medium text-variant">Accountability works better together.</p>
-                <Link to="/friends?tab=add" className="btn btn-tonal state-layer"><Icon name="person_add" />Add a friend</Link>
-              </div>
-            ) : needNudge.length === 0 ? (
-              <p className="body-medium text-variant section-empty"><Icon name="verified" filled className="text-primary" />Everyone has checked in today.</p>
-            ) : (
-              <ul className="list" role="list">
-                {needNudge.map(friend => (
-                  <li key={friend._id} className="list-item">
-                    <Avatar name={friend.name} src={friend.avatar} />
-                    <span className="list-item-content">
-                      <span className="list-item-headline">{friend.name}</span>
-                      <span className="list-item-supporting">Last check-in {relativeTime(friend.lastCheckIn).toLowerCase()}</span>
-                    </span>
-                    <button type="button" className="btn btn-tonal btn-sm state-layer" onClick={() => setNudgeFriend(friend)} disabled={friend.nudgesSentToday >= 3} title={friend.nudgesSentToday >= 3 ? 'Daily limit reached' : undefined}>Nudge</button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section className="card section-card" aria-labelledby="inbox-title">
-            <div className="section-head">
-              <h2 id="inbox-title" className="title-medium">New in inbox</h2>
-              <Link to="/inbox" className="see-all">See all</Link>
-            </div>
-            {inbox.length === 0 ? (
-              <p className="body-medium text-variant section-empty"><Icon name="mark_email_read" className="text-primary" />You’re all caught up.</p>
-            ) : (
-              <ul className="list" role="list">
-                {inbox.map(reminder => {
-                  const automated = reminder.type === 'automated';
-                  return (
-                    <li key={reminder._id}>
-                      <button type="button" className="list-item three-line state-layer" onClick={() => navigate('/inbox')}>
-                        <Avatar name={reminder.from?.name} icon={automated ? 'alarm' : reminder.type === 'encouragement' ? 'celebration' : undefined} size="sm" />
-                        <span className="list-item-content">
-                          <span className="list-item-overline">{automated ? 'Daily reminder' : reminder.from?.name || 'A friend'} · {relativeTime(reminder.createdAt)}</span>
-                          <span className="list-item-supporting clamp-2">{reminder.message}</span>
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
         </aside>
       </div>
 
-      <ReportCard />
+      <ReportCard snapshot={{
+        name: user?.name || 'You',
+        streak: user?.streak || 0,
+        streakToday: Boolean(user?.streakToday),
+        planDone: goals.length - pending.length,
+        planTotal: goals.length,
+        monthRate: month.rate,
+        monthAchieved: month.achieved,
+        monthExpected: month.expected
+      }} />
 
       {checkInGoal && <CheckInDialog goal={checkInGoal} onClose={() => setCheckInGoal(null)} onSaved={goal => { replaceGoal(goal); setCheckInGoal(null); }} />}
       {nudgeFriend && <NudgeDialog friend={nudgeFriend} onClose={() => setNudgeFriend(null)} onSent={() => setFriends(current => current.map(friend => (friend._id === nudgeFriend._id ? { ...friend, nudgesSentToday: friend.nudgesSentToday + 1 } : friend)))} />}

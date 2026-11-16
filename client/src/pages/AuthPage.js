@@ -54,7 +54,7 @@ export default function AuthPage() {
         <div className="auth-brand">
           <span className="auth-mark" aria-hidden="true"><Icon name="local_fire_department" filled /></span>
           <h1 id="auth-title" className="headline-small">{isRegister ? 'Create your account' : 'Sign in'}</h1>
-          <p className="body-medium text-variant">{isRegister ? 'Imagine your future, get inspired and act.' : 'to continue to Accountable'}</p>
+          <p className="body-medium text-variant">{isRegister ? 'Imagine your future, get inspired and act.' : 'to continue to accounTable'}</p>
         </div>
 
         {isRegister && referralCode && (

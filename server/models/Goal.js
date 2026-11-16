@@ -99,6 +99,10 @@ const goalSchema = new mongoose.Schema({
   completedAt: {
     type: Date
   },
+  // First time the goal's target was reached (check-ins >= target, or marked complete). Drives the celebration.
+  achievedAt: {
+    type: Date
+  },
   emoji: {
     type: String,
     default: '🎯'

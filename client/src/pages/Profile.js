@@ -149,7 +149,7 @@ export default function Profile() {
           <Icon name="alarm" className="text-variant" />
           <span className="setting-row-text">
             <span className="body-large">Alarm sound</span>
-            <span className="body-medium text-variant">Rings at both times while Accountable is open in a tab.</span>
+            <span className="body-medium text-variant">Rings at both times while accounTable is open in a tab.</span>
           </span>
           <Switch id="alarm-sound" checked={reminders.alarmSound} onChange={value => set('alarmSound', value)} disabled={!reminders.notificationsEnabled} />
         </label>
@@ -177,7 +177,7 @@ export default function Profile() {
       </form>
 
       <section className="card" aria-labelledby="how-title">
-        <h2 id="how-title" className="title-medium card-title">How Accountable works</h2>
+        <h2 id="how-title" className="title-medium card-title">How accounTable works</h2>
         <ol className="list how-list" role="list">
           {HOW_IT_WORKS.map(([icon, title, text], index) => (
             <li key={title} className="list-item">

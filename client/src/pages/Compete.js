@@ -218,7 +218,7 @@ export default function Compete() {
 
       {error && <ErrorBanner message={error} onRetry={load} />}
 
-      <div className="tabs" role="tablist" aria-label="Compete">
+      <div className="tabs" role="tablist" aria-label="Challenge">
         {[['leaderboard', 'Leaderboard', 'leaderboard'], ['challenges', 'Challenges', 'sports_score']].map(([value, label, icon]) => (
           <button key={value} type="button" role="tab" aria-selected={tab === value} className="tab state-layer" onClick={() => setParams(value === 'leaderboard' ? {} : { tab: value }, { replace: true })}>
             <Icon name={icon} size="20" />{label}{value === 'challenges' && groups.toAnswer.length > 0 && <span className="badge">{groups.toAnswer.length}</span>}

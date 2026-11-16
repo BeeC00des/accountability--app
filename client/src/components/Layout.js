@@ -6,6 +6,7 @@ import { ACCENT_PRESETS, accentHex, useTheme } from '../context/ThemeContext';
 import { Avatar, Icon, Menu } from './ui';
 import AccentDialog from './AccentDialog';
 import ReminderAlarm from './ReminderAlarm';
+import StreakDialog from './StreakDialog';
 import { savePreference } from '../lib/consent';
 
 // Board is the home page. `tab` marks the items shown in the phone tab bar (Inbox lives in the top bar).
@@ -14,7 +15,7 @@ const NAV = [
   { to: '/today', label: 'Today', icon: 'today', tab: true },
   { to: '/goals', label: 'Goals', icon: 'flag', tab: true },
   { to: '/friends', label: 'Friends', icon: 'group', tab: true },
-  { to: '/compete', label: 'Compete', icon: 'emoji_events', tab: true },
+  { to: '/challenge', label: 'Challenge', icon: 'emoji_events', tab: true },
   { to: '/inbox', label: 'Inbox', icon: 'notifications' },
   { to: '/community', label: 'Community', icon: 'diversity_1', tab: true, premium: true }
 ];
@@ -23,7 +24,7 @@ const readCollapsed = () => { try { return window.localStorage.getItem(SIDEBAR_K
 
 export default function Layout() {
   const { user, logout } = useAuth();
-  const { unread } = useApp();
+  const { unread, streakOpen, setStreakOpen } = useApp();
   const { mode, toggleTheme, accent } = useTheme();
   const accentLabel = ACCENT_PRESETS.find(preset => preset.value === accent)?.label || accentHex(accent).toUpperCase();
   const [collapsed, setCollapsed] = useState(readCollapsed);
@@ -47,15 +48,15 @@ export default function Layout() {
     : streak ? `${streak}-day streak — finish a step or check in today to keep it` : 'Finish a step or check in to start a streak';
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${collapsed ? ' sidebar-is-collapsed' : ''}`}>
       <a className="skip-link" href="#main-content">Skip to content</a>
 
       {/* Desktop / tablet: sidebar — collapsible to icons only */}
       <aside className={`sidebar${collapsed ? ' collapsed' : ''}`} aria-label="Primary">
         <div className="sidebar-top">
-          <Link to="/board" className="sidebar-brand" aria-label="Accountable home" title={collapsed ? 'Accountable' : undefined}>
+          <Link to="/board" className="sidebar-brand" aria-label="accounTable home" title={collapsed ? 'accounTable' : undefined}>
             <span className="brand-mark" aria-hidden="true"><Icon name="local_fire_department" filled /></span>
-            <span className="title-medium sidebar-label">Accountable</span>
+            <span className="title-medium sidebar-label">accounTable</span>
           </Link>
           <button type="button" className="icon-btn state-layer sidebar-toggle" onClick={toggleSidebar} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar to icons'} aria-expanded={!collapsed} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
             <Icon name={collapsed ? 'left_panel_open' : 'left_panel_close'} />
@@ -92,13 +93,13 @@ export default function Layout() {
 
       <div className="app-body">
         <header className="top-bar">
-          <Link to="/board" className="top-bar-brand" aria-label="Accountable home">
+          <Link to="/board" className="top-bar-brand" aria-label="accounTable home">
             <span className="brand-mark" aria-hidden="true"><Icon name="local_fire_department" filled /></span>
           </Link>
           <span className="top-bar-spacer" />
-          <Link to="/today" className={`round-btn state-layer streak-pill${user?.streakToday ? ' lit' : ''}`} aria-label={streakTitle} title={streakTitle}>
+          <button type="button" className={`round-btn state-layer streak-pill${user?.streakToday ? ' lit' : ''}`} onClick={() => setStreakOpen(true)} aria-label={streakTitle} title={streakTitle} aria-haspopup="dialog">
             <Icon name="local_fire_department" filled /><span className="round-btn-count">{streak}</span>
-          </Link>
+          </button>
           <Link to="/inbox" className="round-btn state-layer bell-btn" aria-label={unread > 0 ? `Inbox, ${unread} unread` : 'Inbox'} title="Inbox">
             <Icon name="notifications" />
             {unread > 0 && <span className="badge bell-badge" aria-hidden="true">{unreadLabel}</span>}
@@ -156,6 +157,7 @@ export default function Layout() {
 
       {accentOpen && <AccentDialog onClose={() => setAccentOpen(false)} />}
       <ReminderAlarm />
+      {streakOpen && <StreakDialog onClose={() => setStreakOpen(false)} />}
     </div>
   );
 }

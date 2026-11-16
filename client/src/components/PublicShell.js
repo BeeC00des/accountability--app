@@ -12,7 +12,7 @@ export default function PublicShell({ title, children }) {
   const { user } = useAuth();
   useEffect(() => {
     const previous = document.title;
-    document.title = `${title} — Accountable`;
+    document.title = `${title} — accounTable`;
     window.scrollTo(0, 0);
     return () => { document.title = previous; };
   }, [title]);
@@ -21,9 +21,9 @@ export default function PublicShell({ title, children }) {
     <div className="landing">
       <header className="landing-header">
         <div className="landing-container landing-header-inner">
-          <Link to="/" className="landing-brand" aria-label="Accountable home">
+          <Link to="/" className="landing-brand" aria-label="accounTable home">
             <span className="brand-mark" aria-hidden="true"><Icon name="local_fire_department" filled /></span>
-            <span className="title-medium">Accountable</span>
+            <span className="title-medium">accounTable</span>
           </Link>
           <div className="landing-actions">
             <button type="button" className="round-btn state-layer" onClick={toggleTheme} aria-label={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>

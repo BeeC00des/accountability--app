@@ -5,7 +5,7 @@ const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 const { getPeriodKey } = require('../utils/timezone');
 const { requireObjectIds, handleValidation } = require('../utils/validate');
-const { decorateGoal, computeStreak } = require('../services/goalStats');
+const { decorateGoal, goalTarget, computeStreak } = require('../services/goalStats');
 const { recordActivity, removeActivity, refreshStreak } = require('../services/activity');
 
 const router = express.Router();
@@ -131,6 +131,7 @@ const updateGoal = async (req, res) => {
     if (req.body.isCompleted !== undefined) {
       goal.isCompleted = Boolean(req.body.isCompleted);
       goal.completedAt = goal.isCompleted ? new Date() : undefined;
+      if (goal.isCompleted && !goal.achievedAt) goal.achievedAt = new Date();
     }
     if (Array.isArray(req.body.todos)) goal.todos = sanitizeTodos(req.body.todos);
 
@@ -229,6 +230,9 @@ router.post('/:id/checkin', [
 
     goal.streak = computeStreak(goal.checkIns, timezone, frequency, now);
     goal.longestStreak = Math.max(goal.longestStreak || 0, goal.streak);
+    // Reaching the target for the first time achieves the goal (celebrated on Today).
+    const justAchieved = req.body.completed && !goal.achievedAt && goal.checkIns.filter(checkIn => checkIn.completed).length >= goalTarget(goal);
+    if (justAchieved) goal.achievedAt = now;
     await goal.save();
 
     // Any completed check-in counts as today's activity; un-completing today's check-in removes it.
@@ -243,7 +247,9 @@ router.post('/:id/checkin', [
     const extended = req.body.completed && streak.streak > before;
 
     res.json({
+      justAchieved,
       message: !req.body.completed ? 'Check-in saved. Tomorrow is a new chance.'
+        : justAchieved ? `🏆 Congratulations — you achieved “${goal.title}”!`
         : extended ? `🔥 ${streak.streak}-day streak! Keep it going.` : 'Nice work — check-in saved.',
       goal: decorateGoal(goal, timezone),
       user: { ...streak, lastCheckIn: req.body.completed ? now : req.user.lastCheckIn }

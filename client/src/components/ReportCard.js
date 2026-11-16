@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { API } from '../context/AuthContext';
+import { useApp } from '../context/AppContext';
+import { accentHex, useTheme } from '../context/ThemeContext';
 import { apiError, plural } from '../lib/format';
 import { Icon, LinearProgress, Spinner } from './ui';
 
@@ -79,7 +81,10 @@ function ReportChart({ series, title }) {
 }
 
 /** Progress report on Today: week, 2 weeks, month, quarter, half year or full year, compared with the period before. */
-export default function ReportCard() {
+export default function ReportCard({ snapshot }) {
+  const { notify } = useApp();
+  const accent = accentHex(useTheme().accent);
+  const [pdfBusy, setPdfBusy] = useState(false);
   const [range, setRange] = useState(readRange);
   const [report, setReport] = useState(null);
   const [error, setError] = useState('');
@@ -105,6 +110,20 @@ export default function ReportCard() {
     try { window.localStorage.setItem(RANGE_KEY, value); } catch { /* not remembered */ }
   };
 
+  const downloadPdf = async () => {
+    if (!report) return;
+    setPdfBusy(true);
+    try {
+      const { downloadReportPdf } = await import('../lib/reportPdf');
+      const filename = await downloadReportPdf({ report, rangeMeta: { label: meta.label === 'Week' ? 'Weekly' : meta.label, previous: meta.previous }, snapshot, accent });
+      notify(`Saved ${filename}`);
+    } catch {
+      notify('Could not create the PDF. Try again.');
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
   const t = report?.totals;
   const p = report?.previousTotals;
   const bucketWord = range === 'quarter' ? 'week' : ['half', 'year'].includes(range) ? 'month' : 'day';
@@ -117,10 +136,13 @@ export default function ReportCard() {
           <h2 id="report-title" className="title-large">Your report</h2>
           <p className="body-small text-variant">{report ? `${report.label} · ${shortDate(report.start)} – ${shortDate(report.end)}` : 'How you’ve been showing up'}</p>
         </div>
+        <div className="report-tools">
         <div className="segmented report-ranges" role="radiogroup" aria-label="Report period">
           {REPORT_RANGES.map(item => (
             <button key={item.value} type="button" role="radio" aria-checked={range === item.value} className="state-layer" onClick={() => choose(item.value)}>{item.label}</button>
           ))}
+        </div>
+        <button type="button" className="btn btn-filled state-layer report-pdf-btn" onClick={downloadPdf} disabled={!report || loading || pdfBusy}><Icon name="picture_as_pdf" />{pdfBusy ? 'Creating…' : 'Download PDF'}</button>
         </div>
       </div>
 

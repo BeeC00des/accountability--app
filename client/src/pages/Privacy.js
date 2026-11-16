@@ -32,7 +32,7 @@ const SECTIONS = [
     'To request a copy of your data or to delete your account, send us a message through Share feedback and we’ll take care of it.'
   ]],
   ['Children', [
-    'Accountable isn’t intended for children under 13.'
+    'accounTable isn’t intended for children under 13.'
   ]]
 ];
 

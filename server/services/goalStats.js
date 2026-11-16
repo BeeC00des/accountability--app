@@ -54,6 +54,12 @@ const currentPeriodCheckIn = (goal, timezone, now = new Date()) => {
  * Serialises a goal with server-computed, timezone-aware status so clients never
  * have to guess what "today" or "this week" means.
  */
+/** Check-ins needed to achieve a goal: one per day of its timeframe, or one per week for weekly goals. */
+const goalTarget = goal => {
+  const days = goal.targetDays || 30;
+  return (goal.frequency || 'daily') === 'weekly' ? Math.max(1, Math.ceil(days / 7)) : days;
+};
+
 const decorateGoal = (goal, timezone = 'UTC', { includePrivate = true } = {}) => {
   const json = typeof goal.toJSON === 'function' ? goal.toJSON() : { ...goal };
   const frequency = json.frequency || 'daily';
@@ -69,6 +75,8 @@ const decorateGoal = (goal, timezone = 'UTC', { includePrivate = true } = {}) =>
     currentCheckIn: current ? { completed: current.completed, mood: current.mood, note: includePrivate ? current.note : '' } : null,
     completedCheckIns: completedCount,
     completionRate: checkIns.length ? Math.round((completedCount / checkIns.length) * 100) : 0,
+    target: goalTarget(json),
+    achieved: Boolean(json.achievedAt),
     todoProgress: { done: todos.filter(todo => todo.done).length, total: todos.length },
     lastCheckInAt: checkIns.length ? checkIns[checkIns.length - 1].date : null
   };
@@ -82,4 +90,4 @@ const decorateGoal = (goal, timezone = 'UTC', { includePrivate = true } = {}) =>
   return decorated;
 };
 
-module.exports = { computeStreak, computeUserStreak, currentPeriodCheckIn, decorateGoal };
+module.exports = { computeStreak, computeUserStreak, currentPeriodCheckIn, decorateGoal, goalTarget };

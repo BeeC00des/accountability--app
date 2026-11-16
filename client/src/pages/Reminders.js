@@ -147,7 +147,7 @@ export default function Inbox() {
               const kind = kindOf(reminder);
               const automated = reminder.type === 'automated';
               const person = box === 'sent' ? reminder.to : reminder.from;
-              const headline = box === 'sent' ? `To ${person?.name || 'a friend'}` : automated ? 'Accountable' : person?.name || 'A friend';
+              const headline = box === 'sent' ? `To ${person?.name || 'a friend'}` : automated ? 'accounTable' : person?.name || 'A friend';
               const canCheckIn = box === 'inbox' && (automated || reminder.type === 'manual');
               const isChallenge = reminder.type === 'challenge';
               const canReply = box === 'inbox' && !automated && !isChallenge && person?._id;
@@ -169,7 +169,7 @@ export default function Inbox() {
                       </span>
                       {(canCheckIn || canReply || isChallenge) && box === 'inbox' && (
                         <span className="message-actions">
-                          {isChallenge && box === 'inbox' && <button type="button" className="btn btn-tonal btn-sm state-layer" onClick={event => { event.stopPropagation(); setRead(reminder, true); navigate('/compete?tab=challenges'); }}><Icon name="emoji_events" />Open challenge</button>}
+                          {isChallenge && box === 'inbox' && <button type="button" className="btn btn-tonal btn-sm state-layer" onClick={event => { event.stopPropagation(); setRead(reminder, true); navigate('/challenge?tab=challenges'); }}><Icon name="emoji_events" />Open challenge</button>}
                           {canCheckIn && <button type="button" className="btn btn-tonal btn-sm state-layer" onClick={event => { event.stopPropagation(); checkIn(reminder); }}><Icon name="check" />Check in</button>}
                           {canReply && <button type="button" className="btn btn-text btn-sm state-layer" onClick={event => { event.stopPropagation(); setRead(reminder, true); setReply(person); }}><Icon name="reply" />Say thanks</button>}
                         </span>

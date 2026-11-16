@@ -1,5 +1,5 @@
 /*
- * Storage consent. Accountable uses no ads or third-party trackers; the only browser storage is:
+ * Storage consent. accounTable uses no ads or third-party trackers; the only browser storage is:
  *  - essential: your sign-in session (always on — the app can't work without it)
  *  - preferences: appearance, theme color, sidebar state and dismissed tips (optional)
  */

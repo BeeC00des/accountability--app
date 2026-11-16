@@ -14,6 +14,7 @@ const leaderboardRoutes = require('./routes/leaderboard');
 const challengeRoutes = require('./routes/challenges');
 const supportRoutes = require('./routes/support');
 const reportRoutes = require('./routes/reports');
+const streakRoutes = require('./routes/streaks');
 const { router: adminRoutes } = require('./routes/admin');
 const feedbackRoutes = require('./routes/feedback');
 const { backfillActivities } = require('./services/activity');
@@ -45,6 +46,7 @@ app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/challenges', challengeRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/streaks', streakRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/feedback', feedbackRoutes);
 
