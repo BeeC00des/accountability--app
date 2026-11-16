@@ -1,0 +1,35 @@
+# Render Blueprint for the accounTable API (Express + MongoDB Atlas).
+# Render → New → Blueprint → pick this repo. Values marked "sync: false" are asked for once in the dashboard
+# and never stored in git.
+services:
+  - type: web
+    name: accountable-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    plan: free
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: CLIENT_URL # your Vercel address, e.g. https://accountable.vercel.app (no trailing slash)
+        sync: false
+      - key: API_PUBLIC_URL # this service's address, e.g. https://accountable-api.onrender.com
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
