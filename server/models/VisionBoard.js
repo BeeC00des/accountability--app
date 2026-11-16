@@ -8,7 +8,7 @@ const itemSchema = new mongoose.Schema({
   type: { type: String, enum: ['image', 'text'], required: true },
   // image items
   imageUrl: { type: String, maxlength: 400 * 1024 }, // https://i.pinimg.com/... or a resized data URL upload
-  source: { type: String, enum: ['pinterest', 'upload', ''], default: '' },
+  source: { type: String, enum: ['pinterest', 'openverse', 'upload', ''], default: '' },
   sourceUrl: { type: String, maxlength: 500, default: '' },
   width: Number,
   height: Number,

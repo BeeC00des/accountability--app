@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext';
 import { Avatar, ErrorBanner, Icon, Spinner } from '../components/ui';
 import CheckInDialog from '../components/CheckInDialog';
 import NudgeDialog from '../components/NudgeDialog';
+import ReportCard from '../components/ReportCard';
 import { apiError, dayKey, firstName, formatDate, plural, relativeTime } from '../lib/format';
 import { MOODS, periodLabel, periodWord, tileClass } from '../lib/goals';
 import { savePreference } from '../lib/consent';
@@ -158,7 +159,7 @@ export default function Today() {
   const setupSteps = [
     { done: goals.length > 0, label: 'Create your first goal', detail: 'Something small you can check in on.', to: '/goals?new=1', icon: 'flag' },
     { done: friends.length > 0, label: 'Add an accountability partner', detail: 'Friends can nudge and cheer you on.', to: '/friends?tab=add', icon: 'person_add' },
-    { done: readFlag('accountable-reminder-set'), label: 'Choose your reminder time', detail: `Currently ${user?.reminderTime || '08:00'} · ${user?.timezone || 'UTC'}`, to: '/profile#settings', icon: 'schedule' }
+    { done: readFlag('accountable-reminder-set'), label: 'Choose your reminder times', detail: `Currently ${user?.reminderTime || '08:00'} and ${user?.reminderTime2 || '20:00'} · ${user?.timezone || 'UTC'}`, to: '/profile#settings', icon: 'schedule' }
   ];
   const setupRemaining = setupSteps.filter(step => !step.done).length;
   const showSetup = !setupDismissed && setupRemaining > 0;
@@ -354,6 +355,8 @@ export default function Today() {
           </section>
         </aside>
       </div>
+
+      <ReportCard />
 
       {checkInGoal && <CheckInDialog goal={checkInGoal} onClose={() => setCheckInGoal(null)} onSaved={goal => { replaceGoal(goal); setCheckInGoal(null); }} />}
       {nudgeFriend && <NudgeDialog friend={nudgeFriend} onClose={() => setNudgeFriend(null)} onSent={() => setFriends(current => current.map(friend => (friend._id === nudgeFriend._id ? { ...friend, nudgesSentToday: friend.nudgesSentToday + 1 } : friend)))} />}

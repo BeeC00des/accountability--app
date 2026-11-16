@@ -5,11 +5,12 @@ const { CATEGORIES } = require('../models/SupportRequest');
 const Goal = require('../models/Goal');
 const User = require('../models/User');
 const { protect } = require('../middleware/auth');
+const { requirePremium } = require('../middleware/premium');
 const { handleValidation, isObjectId, requireObjectIds } = require('../utils/validate');
 const { ensureFriendCode } = require('../services/friendCode');
 
 const router = express.Router();
-router.use(protect);
+router.use(protect, requirePremium); // Community is Premium-only
 
 // Capital support (sponsored subscriptions) is reserved for people who've grown the community.
 const REFERRALS_REQUIRED = Number(process.env.SPONSORSHIP_REFERRALS_REQUIRED) || 3;

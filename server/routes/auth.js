@@ -2,6 +2,9 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
+const Feedback = require('../models/Feedback');
+const { ADMIN_EMAIL, sendMail, escape } = require('../services/mailer');
+const { premiumApproveLink } = require('./admin');
 const { refreshStreak } = require('../services/activity');
 const { protect } = require('../middleware/auth');
 const { isValidTimeZone } = require('../utils/timezone');
@@ -85,6 +88,8 @@ router.put('/profile', protect, [
   body('avatar').optional().custom(value => value === '' || (typeof value === 'string' && value.length <= MAX_AVATAR_LENGTH && AVATAR_PATTERN.test(value)))
     .withMessage('Use a PNG, JPEG or WebP photo under 150 KB.'),
   body('reminderTime').optional().custom(value => Boolean(normalizeTime(value))).withMessage('Choose a valid reminder time'),
+  body('reminderTime2').optional().custom(value => Boolean(normalizeTime(value))).withMessage('Choose a valid evening reminder time'),
+  body('alarmSound').optional().isBoolean().withMessage('Alarm sound must be on or off').toBoolean(),
   body('timezone').optional().custom(value => isValidTimeZone(value)).withMessage('Choose a valid IANA timezone'),
   body('notificationsEnabled').optional().isBoolean(),
   body('accent').optional().matches(/^(lime|ocean|coral|lavender|mint|amber|graphite|#[0-9a-fA-F]{6})$/).withMessage('Choose a valid color.')
@@ -92,7 +97,7 @@ router.put('/profile', protect, [
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ message: errors.array()[0].msg, errors: errors.array() });
   try {
-    const { name, bio, avatar, reminderTime, timezone, notificationsEnabled, accent } = req.body;
+    const { name, bio, avatar, reminderTime, reminderTime2, alarmSound, timezone, notificationsEnabled, accent } = req.body;
     const updateData = {};
     if (accent !== undefined) updateData.accent = accent;
     if (name !== undefined) updateData.name = name;
@@ -100,6 +105,8 @@ router.put('/profile', protect, [
     if (avatar !== undefined) updateData.avatar = avatar;
     // Store as zero-padded HH:MM — the scheduler compares exact strings.
     if (reminderTime !== undefined) updateData.reminderTime = normalizeTime(reminderTime);
+    if (reminderTime2 !== undefined) updateData.reminderTime2 = normalizeTime(reminderTime2);
+    if (alarmSound !== undefined) updateData.alarmSound = alarmSound;
     if (timezone !== undefined) updateData.timezone = timezone;
     if (notificationsEnabled !== undefined) updateData.notificationsEnabled = notificationsEnabled === true || notificationsEnabled === 'true';
 
@@ -150,6 +157,38 @@ router.put('/password', protect, [
   } catch (error) {
     console.error('Change password error:', error);
     res.status(500).json({ message: 'Could not update your password.' });
+  }
+});
+
+// POST /api/auth/premium-request - Ask for Premium (Community). The owner grants it with `npm run premium -- <email>`.
+router.post('/premium-request', protect, async (req, res) => {
+  try {
+    if (req.user.plan === 'premium') return res.json({ message: 'You already have Premium.', user: req.user.toJSON() });
+    const already = Boolean(req.user.premiumRequestedAt);
+    if (!already) {
+      req.user.premiumRequestedAt = new Date();
+      await req.user.save();
+      await Feedback.create({ user: req.user._id, kind: 'other', message: `Premium access request from ${req.user.name}`, email: req.user.email, page: '/community' });
+      const approve = premiumApproveLink(req.user._id);
+      const when = new Date().toUTCString();
+      const mail = await sendMail({
+        to: ADMIN_EMAIL,
+        replyTo: req.user.email,
+        subject: `Premium request: ${req.user.name}`,
+        text: `${req.user.name} (${req.user.email}) asked for Premium to unlock Community.\nRequested: ${when}\n\nApprove with one click: ${approve}\n\nOr run in server/: npm run premium -- ${req.user.email}`,
+        html: `<div style="font:15px/1.5 -apple-system,Segoe UI,sans-serif;color:#111;max-width:520px">
+          <h2 style="margin:0 0 12px">New Premium request</h2>
+          <p style="margin:0 0 16px"><strong>${escape(req.user.name)}</strong> (${escape(req.user.email)}) asked for Premium to unlock Community.</p>
+          <p style="margin:0 0 20px;color:#555">Requested ${escape(when)}</p>
+          <p style="margin:0 0 20px"><a href="${approve}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#111;color:#fff;text-decoration:none;font-weight:600">Approve Premium</a></p>
+          <p style="margin:0;color:#777;font-size:13px">Or run in server/: <code>npm run premium -- ${escape(req.user.email)}</code>. Reply to this email to contact them.</p></div>`
+      });
+      if (!mail.sent) console.warn(`Premium request email not sent: ${mail.reason}`);
+    }
+    res.json({ message: already ? 'Your request is already in — we’ll let you know.' : 'Request sent. We’ll let you know when Premium is on.', user: req.user.toJSON() });
+  } catch (error) {
+    console.error('Premium request error:', error);
+    res.status(500).json({ message: 'Could not send your request.' });
   }
 });
 

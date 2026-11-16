@@ -48,6 +48,16 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: '08:00'
   },
+  // Second daily reminder (evening). Both times nudge only if a goal still needs today's check-in.
+  reminderTime2: {
+    type: String,
+    default: '20:00'
+  },
+  // Play an alarm sound in the app at reminder times.
+  alarmSound: {
+    type: Boolean,
+    default: true
+  },
   friends: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
@@ -87,6 +97,16 @@ const userSchema = new mongoose.Schema({
   notificationsEnabled: {
     type: Boolean,
     default: true
+  },
+  // Premium unlocks Community. Only the server (npm run premium) can change it; users can only request it.
+  plan: {
+    type: String,
+    enum: ['free', 'premium'],
+    default: 'free'
+  },
+  premiumRequestedAt: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

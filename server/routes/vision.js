@@ -92,6 +92,7 @@ router.post('/items', [
       return true;
     }
     if (item.source === 'pinterest' && typeof item.imageUrl === 'string' && PINIMG.test(item.imageUrl)) return true;
+    if (item.source === 'openverse' && typeof item.imageUrl === 'string' && OPENVERSE_IMG.test(item.imageUrl)) return true;
     if (item.source === 'upload' && typeof item.imageUrl === 'string' && item.imageUrl.length <= MAX_UPLOAD_LENGTH && UPLOAD.test(item.imageUrl)) return true;
     throw new Error('Add a Pinterest image or upload a JPEG, PNG or WebP under 500 KB.');
   }),
@@ -327,11 +328,100 @@ router.delete('/sources', [query('url').isString(), handleValidation], async (re
   res.json({ mine: user.inspirationSources });
 });
 
+/* ---------- Keyword search (Openverse: free, openly licensed photos, no API key) ---------- */
+
+const OPENVERSE = 'https://api.openverse.org/v1/images/';
+const OPENVERSE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// Full-size image served by Openverse itself (works even when the original host blocks hotlinking).
+const openverseImage = id => `${OPENVERSE}${id}/thumb/?full_size=true`;
+const OPENVERSE_IMG = /^https:\/\/api\.openverse\.org\/v1\/images\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/thumb\/\?full_size=true$/i;
+const OPENVERSE_UA = 'AccountableVisionBoard/1.0';
+const SEARCH_TTL = 6 * 60 * 60 * 1000;
+const searchCache = new Map(); // `${q}|${page}` -> { at, data }  (keeps us well inside Openverse's anonymous rate limit)
+
+const remember = (map, key, value, limit) => {
+  map.set(key, value);
+  if (map.size > limit) map.delete(map.keys().next().value);
+};
+
+
+const openverseGet = async url => {
+  const response = await fetch(url, { headers: { 'User-Agent': OPENVERSE_UA, Accept: 'application/json' }, signal: AbortSignal.timeout(15000) });
+  if (response.status === 429) throw Object.assign(new Error('rate limited'), { status: 429 });
+  if (response.status === 404) throw Object.assign(new Error('not found'), { status: 404 });
+  if (!response.ok) throw Object.assign(new Error(`openverse ${response.status}`), { status: 502 });
+  return response.json();
+};
+
+// Stock-photo sources first (clean, aspirational images); widen only when a rare keyword needs it.
+const SOURCE_TIERS = ['stocksnap', 'stocksnap,rawpixel', ''];
+const NOT_PHOTO = /\b(sticker|png|vector|illustration|clipart|clip art|icon|drawing|engraving|lithograph|poster|logo|mockup)\b/i;
+const tierCache = new Map(); // query -> { at, tier, pages }
+
+const searchPage = async (q, page, sources) => {
+  const key = `${q.toLowerCase()}|${sources}|${page}`;
+  const hit = searchCache.get(key);
+  if (hit && Date.now() - hit.at < SEARCH_TTL) return hit.data;
+  const params = new URLSearchParams({ q, page: String(page), page_size: '20', category: 'photograph', mature: 'false' });
+  if (sources) params.set('source', sources);
+  const data = await openverseGet(`${OPENVERSE}?${params}`);
+  remember(searchCache, key, { at: Date.now(), data }, 500);
+  return data;
+};
+
+/** Finds the narrowest source tier with enough results for this keyword (cached per keyword). */
+const tierFor = async q => {
+  const key = q.toLowerCase();
+  const hit = tierCache.get(key);
+  if (hit && Date.now() - hit.at < SEARCH_TTL) return hit;
+  let chosen = null;
+  for (const sources of SOURCE_TIERS) {
+    // eslint-disable-next-line no-await-in-loop
+    const first = await searchPage(q, 1, sources);
+    chosen = { at: Date.now(), sources, pages: Math.max(1, Math.min(first.page_count || 1, 12)) };
+    if ((first.result_count || 0) >= 60) break;
+  }
+  remember(tierCache, key, chosen, 500);
+  return chosen;
+};
+
+// GET /api/vision/search?q=travel - Photos for a keyword; a random results page each call so reloads show fresh images
+router.get('/search', [query('q').isString().trim().isLength({ min: 2, max: 60 }).withMessage('Type at least 2 letters.'), handleValidation], async (req, res) => {
+  const q = req.query.q.trim().replace(/\s+/g, ' ');
+  try {
+    const tier = await tierFor(q);
+    const page = 1 + Math.floor(Math.random() * tier.pages);
+    const data = await searchPage(q, page, tier.sources).catch(error => {
+      if (error.status === 404 || error.status === 400) return searchPage(q, 1, tier.sources);
+      throw error;
+    });
+    const photos = (data.results || []).filter(photo => OPENVERSE_ID.test(photo.id || '') && !NOT_PHOTO.test(photo.title || ''));
+    for (let i = photos.length - 1; i > 0; i -= 1) { const j = Math.floor(Math.random() * (i + 1)); [photos[i], photos[j]] = [photos[j], photos[i]]; }
+    res.json({
+      query: q,
+      pins: photos.map(photo => ({
+        id: photo.id,
+        thumbUrl: `${OPENVERSE}${photo.id}/thumb/`,
+        imageUrl: openverseImage(photo.id),
+        width: photo.width,
+        height: photo.height,
+        title: (photo.title || '').slice(0, 80),
+        credit: photo.creator || ''
+      }))
+    });
+  } catch (error) {
+    if (error.status === 429) return res.status(429).json({ message: 'Lots of searches right now. Try again in a minute.' });
+    console.error('Image search error:', error.message);
+    res.status(502).json({ message: 'Image search didn’t respond. Try again in a moment.' });
+  }
+});
+
 // GET /api/vision/proxy?url=https://i.pinimg.com/... - Same-origin copy so the browser can export the board to PNG
 router.get('/proxy', [query('url').isString(), handleValidation], async (req, res) => {
-  if (!PINIMG.test(req.query.url)) return res.status(400).json({ message: 'Only Pinterest images can be proxied.' });
+  const { url } = req.query;
+  if (!PINIMG.test(url) && !OPENVERSE_IMG.test(url)) return res.status(400).json({ message: 'That image can’t be loaded here.' });
   try {
-    const upstream = await fetch(req.query.url, { headers: { 'User-Agent': BROWSER_UA }, signal: AbortSignal.timeout(15000) });
+    const upstream = await fetch(url, { headers: { 'User-Agent': BROWSER_UA }, signal: AbortSignal.timeout(15000) });
     const type = upstream.headers.get('content-type') || '';
     if (!upstream.ok || !type.startsWith('image/')) return res.status(502).json({ message: 'Could not load that image.' });
     const buffer = Buffer.from(await upstream.arrayBuffer());

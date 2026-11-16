@@ -100,7 +100,7 @@ export default function Inbox() {
           <h1 className="headline-medium">Inbox</h1>
           <p className="body-large text-variant">Nudges and cheers from friends, plus your daily reminders.</p>
         </div>
-        <Link to="/profile#settings" className="btn btn-outlined state-layer hide-compact"><Icon name="schedule" />Reminder time</Link>
+        <Link to="/profile#settings" className="btn btn-outlined state-layer hide-compact"><Icon name="alarm" />Reminder times</Link>
       </header>
 
       <div className="tabs" role="tablist" aria-label="Mailbox">
@@ -135,7 +135,7 @@ export default function Inbox() {
           ) : (
             <EmptyState icon="mark_email_read" title={filter === 'all' ? 'No messages yet' : 'Nothing here'}>
               {filter === 'all'
-                ? `Friends’ nudges appear here, along with your daily reminder at ${user?.reminderTime || '08:00'} when goals still need a check-in.`
+                ? `Friends’ nudges appear here, along with your reminders at ${user?.reminderTime || '08:00'} and ${user?.reminderTime2 || '20:00'} when goals still need a check-in.`
                 : 'Try another filter.'}
             </EmptyState>
           )}

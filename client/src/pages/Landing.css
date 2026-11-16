@@ -242,7 +242,7 @@ html { scroll-behavior: smooth; }
 
 /* FAQ */
 .lt-faq-section { background: var(--bg); }
-.lt-faq-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; align-items: center; gap: 64px; }
+.lt-faq-grid { max-width: 820px; }
 .lt-faq { margin-top: 36px; border-top: 1px solid var(--separator); }
 .lt-faq-item { border-bottom: 1px solid var(--separator); }
 .lt-faq-item summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 4px; font: 500 17px/1.35 var(--font); list-style: none; cursor: pointer; }
@@ -334,13 +334,12 @@ label.consent-row { cursor: pointer; }
 
 /* Tablet */
 @media (max-width: 1023px) {
-  .lt-hero-grid, .lt-faq-grid, .lt-compete { grid-template-columns: minmax(0, 1fr); }
+  .lt-hero-grid, .lt-compete { grid-template-columns: minmax(0, 1fr); }
   .lt-hero-copy { padding-bottom: 0; text-align: center; }
   .lt-hero-copy .lt-lead { margin-inline: auto; }
   .lt-hero-copy .lt-actions, .lt-hero-copy .lt-ticks { justify-content: center; }
   .lt-features { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .lt-features-phone { display: grid; grid-column: 1 / -1; justify-items: center; order: -1; }
-  .lt-faq-phone { display: none; }
   .lt .landing-nav { display: none; }
 }
 /* Phone */

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { API } from '../context/AuthContext';
+import { API, useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { Dialog, EmptyState, ErrorBanner, Icon, LinearProgress, Spinner, TextField } from '../components/ui';
 import { apiError, relativeTime } from '../lib/format';
@@ -88,9 +88,57 @@ function RequestDialog({ kind, category, goals, onClose, onSent }) {
   );
 }
 
-export default function Community() {
+/** Upgrade card shown over the locked Community preview for free accounts. */
+function PremiumCard() {
+  const { user, updateUser } = useAuth();
   const { notify } = useApp();
-  const [data, setData] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const requested = Boolean(user?.premiumRequestedAt);
+
+  const requestPremium = async () => {
+    setBusy(true);
+    try {
+      const response = await API.post('/auth/premium-request');
+      updateUser({ premiumRequestedAt: response.data.user.premiumRequestedAt, plan: response.data.user.plan });
+      notify(response.data.message);
+    } catch (requestError) {
+      notify(apiError(requestError, 'Could not send your request. Try again.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="premium-gate" aria-labelledby="premium-title">
+      <span className="premium-gate-icon" aria-hidden="true"><Icon name="workspace_premium" filled /></span>
+      <span className="premium-tag premium-tag-lg"><Icon name="lock" />Premium</span>
+      <h1 id="premium-title" className="headline-small">Community is <span className="italic-accent">Premium.</span></h1>
+      <p className="body-medium text-variant premium-gate-copy">Request a therapist, mentor, counsellor, coach or accountability buddy, and track every request — all unlocked with Premium.</p>
+      {requested ? (
+        <div className="premium-requested" role="status">
+          <Icon name="schedule" />
+          <span><strong className="title-small">Request sent</strong><span className="body-small text-variant">We’ll turn Premium on for your account and let you know. Requested {relativeTime(user.premiumRequestedAt).toLowerCase()}.</span></span>
+        </div>
+      ) : (
+        <button type="button" className="btn btn-filled state-layer premium-gate-btn" onClick={requestPremium} disabled={busy}>
+          <Icon name="workspace_premium" filled />{busy ? 'Sending…' : 'Request Premium'}
+        </button>
+      )}
+    </section>
+  );
+}
+
+const PREVIEW_DATA = { requests: [], referrals: { count: 0, required: 3, eligible: false, code: null } };
+
+export default function Community() {
+  const { user } = useAuth();
+  return <CommunityContent preview={user?.plan !== 'premium'} />;
+}
+
+/** The Community page. In `preview` (free accounts) it shows the same page, locked, under the upgrade card. */
+function CommunityContent({ preview = false }) {
+  const { notify } = useApp();
+  const [data, setData] = useState(preview ? PREVIEW_DATA : null);
   const [goals, setGoals] = useState([]);
   const [error, setError] = useState('');
   const [request, setRequest] = useState(null); // { kind, category }
@@ -105,7 +153,7 @@ export default function Community() {
       setError(apiError(loadError, 'Could not load community support.'));
     }
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (!preview) load(); }, [load, preview]);
 
   const withdraw = async item => {
     try {
@@ -131,8 +179,8 @@ export default function Community() {
     }
   };
 
-  return (
-    <div className="page">
+  const body = (
+    <>
       <header className="page-header">
         <div>
           <h1 className="headline-medium">Stuck with your <span className="italic-accent">growth plan?</span></h1>
@@ -222,6 +270,15 @@ export default function Community() {
           onSent={(sent, message) => { setData(current => ({ ...current, requests: [sent, ...(current?.requests || [])] })); notify(message); }}
         />
       )}
+    </>
+  );
+
+  if (!preview) return <div className="page">{body}</div>;
+  return (
+    <div className="page community-locked">
+      {/* Read-only look at what Premium unlocks: not focusable, not clickable, hidden from screen readers. */}
+      <div className="premium-preview" inert="" aria-hidden="true">{body}</div>
+      <div className="premium-overlay"><PremiumCard /></div>
     </div>
   );
 }

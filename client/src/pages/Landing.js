@@ -406,7 +406,7 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* ---------- FAQ + phone ---------- */}
+        {/* ---------- FAQ ---------- */}
         <section className="lt-section lt-faq-section" aria-labelledby="faq-heading">
           <div className="landing-container lt-faq-grid">
             <div>
@@ -422,25 +422,6 @@ export default function Landing() {
                   </details>
                 ))}
               </div>
-            </div>
-            <div className="lt-faq-phone" aria-hidden="true">
-              <Phone>
-                <PhoneAppBar />
-                <div className="lt-card lt-card-lavender lt-card-big">
-                  <span className="lt-card-label">Community</span>
-                  <Icon name="diversity_1" className="lt-card-icon" />
-                  <strong className="lt-card-value lt-card-text">Find a mentor</strong>
-                  <span className="lt-status">Request sent</span>
-                  <span className="lt-card-foot">We’ll reply within two days</span>
-                </div>
-                <div className="lt-card">
-                  <span className="lt-card-label">Invites</span>
-                  <Icon name="redeem" className="lt-card-icon" />
-                  <strong className="lt-card-value">2/3</strong>
-                  <span className="lt-status">Almost sponsored</span>
-                </div>
-                <PhoneDock />
-              </Phone>
             </div>
           </div>
         </section>

@@ -120,7 +120,7 @@ export const Dialog = ({ title, description, icon, onClose, children, actions, w
     <div className="scrim" onMouseDown={event => { if (event.target === event.currentTarget) closeRef.current(); }}>
       <Container
         ref={ref}
-        className={`dialog${wide ? ' dialog-wide' : ''}`}
+        className={`dialog${wide ? ' dialog-wide' : ''}${wide === 'xl' ? ' dialog-xl' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

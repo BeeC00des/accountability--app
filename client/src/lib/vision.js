@@ -30,17 +30,18 @@ export const defaultTitle = (year, value) => (value === 'year' ? `My ${year} vis
 // 'lime' is the stored value for the board theme that follows the dashboard theme colour (kept for existing boards).
 export const THEMES = [
   { value: 'lime', label: 'Theme color', swatch: 'linear-gradient(160deg, color-mix(in srgb, var(--lime) 62%, #ffffff), color-mix(in srgb, var(--lime) 14%, #ffffff))' },
-  { value: 'cream', label: 'Cream', swatch: 'linear-gradient(160deg, #f6efe2, #fffaf2)' },
-  { value: 'midnight', label: 'Midnight', swatch: 'radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--lime) 30%, #0e0f0c), #0e0f0c 70%)' }
+  { value: 'midnight', label: 'Black', swatch: '#000000' }
 ];
+// Vision boards use only the dashboard theme colour and black. Retired colours (cream boards; sun/blush/sky words) fall back to the theme colour.
 export const WORD_COLORS = [
-  { value: 'lime', label: 'Lime', bg: '#d8f36a', fg: '#1a2000' },
-  { value: 'yellow', label: 'Sun', bg: '#f8d44c', fg: '#2a2100' },
-  { value: 'pink', label: 'Blush', bg: '#ffc8e8', fg: '#3b0a2a' },
-  { value: 'blue', label: 'Sky', bg: '#cdebff', fg: '#06223a' },
-  { value: 'ink', label: 'Ink', bg: '#111111', fg: '#ffffff' }
+  { value: 'lime', label: 'Theme color', bg: 'var(--lime)', fg: 'var(--on-lime)' },
+  { value: 'ink', label: 'Black', bg: '#000000', fg: '#ffffff' }
 ];
 export const wordColor = value => WORD_COLORS.find(color => color.value === value) || WORD_COLORS[0];
+const isHex = value => /^#[0-9a-f]{6}$/i.test(value || '');
+const onHex = hex => { const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255).map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)); return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.18 ? '#111111' : '#ffffff'; };
+/** Canvas version of wordColor: resolves the theme colour to real hex values. */
+const wordPaint = (value, accent) => { const color = wordColor(value); return color.value === 'lime' ? { bg: accent, fg: onHex(accent) } : color; };
 
 /* ---------- Export formats ---------- */
 export const FORMATS = [
@@ -105,8 +106,7 @@ const mixHex = (hex, target, weight) => {
 
 const THEME_PAINT = {
   lime: { text: '#111111', sub: 'rgba(17,17,17,.62)', paint: (ctx, w, h, accent) => { const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, mixHex(accent, '#ffffff', 0.6)); g.addColorStop(0.55, mixHex(accent, '#ffffff', 0.3)); g.addColorStop(1, mixHex(accent, '#ffffff', 0.07)); return g; } },
-  cream: { text: '#2b2620', sub: 'rgba(43,38,32,.6)', paint: (ctx, w, h) => { const g = ctx.createLinearGradient(0, 0, w, h); g.addColorStop(0, '#f6efe2'); g.addColorStop(1, '#fffaf2'); return g; } },
-  midnight: { text: '#f5f5f7', sub: 'rgba(245,245,247,.62)', paint: (ctx, w, h, accent) => { const g = ctx.createRadialGradient(w / 2, 0, 0, w / 2, 0, Math.max(w, h) * 0.9); g.addColorStop(0, mixHex(accent, '#0e0f0c', 0.3)); g.addColorStop(0.55, '#15170f'); g.addColorStop(1, '#0b0c09'); return g; } }
+  midnight: { text: '#f5f5f7', sub: 'rgba(245,245,247,.62)', paint: () => '#000000' }
 };
 
 const roundRect = (ctx, x, y, w, h, r) => {
@@ -163,7 +163,8 @@ export async function renderBoard({ board, format, scale = 1, images, accent = '
 
   if (document.fonts?.ready) await document.fonts.ready;
 
-  ctx.fillStyle = theme.paint(ctx, width, height, /^#[0-9a-f]{6}$/i.test(accent) ? accent : '#d8f36a');
+  if (!isHex(accent)) accent = '#d8f36a';
+  ctx.fillStyle = theme.paint(ctx, width, height, accent);
   ctx.fillRect(0, 0, width, height);
 
   // Header (title + period). On phone wallpapers it sits at the bottom, clear of the lock-screen clock.
@@ -215,7 +216,7 @@ export async function renderBoard({ board, format, scale = 1, images, accent = '
     ctx.clip();
 
     if (item.type === 'text') {
-      const color = wordColor(item.color);
+      const color = wordPaint(item.color, accent);
       ctx.fillStyle = color.bg;
       ctx.fillRect(x, y, w, h);
       ctx.fillStyle = color.fg;
@@ -301,3 +302,150 @@ export const printBlob = (blob, paper) => new Promise(resolve => {
   };
   if (image.complete) go(); else image.onload = go;
 });
+
+/* ---------- Vision board studio (phone / laptop wallpaper) ---------- */
+export const COLLAGE_SIZES = [
+  { value: 'phone', label: 'Phone', detail: '1290 × 2796', icon: 'smartphone', width: 1290, height: 2796, lockScreen: true },
+  { value: 'laptop', label: 'Laptop', detail: '2880 × 1800', icon: 'laptop_mac', width: 2880, height: 1800 }
+];
+
+/** Small seeded random generator, so "Auto arrange" gives a new layout each press. */
+const seeded = seed => () => {
+  let t = (seed += 0x6d2b79f5);
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+};
+
+const titleMetrics = size => {
+  const unit = Math.min(size.width, size.height);
+  const titleSize = unit * (size.lockScreen ? 0.06 : 0.045);
+  return { titleSize, band: titleSize * 2.4 };
+};
+
+/**
+ * Starting arrangement for the vision board studio: an edge-to-edge mosaic (items go into the
+ * shortest column, then each column stretches to fill the height). Returns rects as fractions
+ * of the board (x, y, w, h in 0–1) so the same layout works at preview and full size.
+ */
+export function autoLayout({ items, size, images, spacing = 0.35, showTitle = true, seed = 1 }) {
+  const { width, height } = size;
+  const unit = Math.min(width, height);
+  const gap = unit * 0.03 * spacing;
+  const { band } = titleMetrics(size);
+  let top = gap;
+  let bottom = height - gap;
+  if (showTitle) { if (size.lockScreen) bottom -= band; else top += band; }
+
+  const random = seeded(seed);
+  const ordered = items.map(item => ({ item, sort: random() })).sort((a, b) => a.sort - b.sort).map(entry => entry.item);
+  if (!ordered.length) return [];
+  const areaW = width - gap * 2;
+  const areaH = bottom - top;
+  const cols = Math.max(1, Math.min(ordered.length, Math.round(Math.sqrt(ordered.length * (areaW / areaH) * 0.8))));
+  const ratioOf = item => {
+    const image = item.type === 'image' && images?.get(item._id);
+    if (image) return Math.min(2.2, Math.max(0.5, image.naturalHeight / image.naturalWidth));
+    if (item.type === 'image' && item.width && item.height) return Math.min(2.2, Math.max(0.5, item.height / item.width));
+    return item.type === 'text' ? 0.8 : 1.25;
+  };
+  const stacks = Array.from({ length: cols }, () => ({ items: [], total: 0 }));
+  ordered.forEach(item => {
+    const target = stacks.reduce((best, stack) => (stack.total < best.total ? stack : best), stacks[0]);
+    const ratio = ratioOf(item);
+    target.items.push({ item, ratio });
+    target.total += ratio;
+  });
+  const filled = stacks.filter(stack => stack.items.length);
+  const colW = (areaW - gap * (filled.length - 1)) / filled.length;
+  const rects = [];
+  filled.forEach((stack, col) => {
+    const x = gap + col * (colW + gap);
+    const free = areaH - gap * (stack.items.length - 1);
+    let y = top;
+    stack.items.forEach(({ item, ratio }) => {
+      const h = (ratio / stack.total) * free;
+      rects.push({ id: item._id, x: x / width, y: y / height, w: colW / width, h: h / height });
+      y += h + gap;
+    });
+  });
+  return rects;
+}
+
+/**
+ * Draws the board exactly as arranged in the studio: background, title, then each tile in
+ * `rects` order (later = on top). options: { corners 0–1, background 'theme' | 'black', showTitle }
+ */
+export async function renderComposition({ board, size, images, rects, accent = '#d8f36a', scale = 1, options = {} }) {
+  const { corners = 0.4, background = 'theme', showTitle = true } = options;
+  if (!isHex(accent)) accent = '#d8f36a';
+  const width = Math.round(size.width * scale);
+  const height = Math.round(size.height * scale);
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  const dark = background === 'black';
+  ctx.fillStyle = dark ? '#000000' : accent;
+  ctx.fillRect(0, 0, width, height);
+  if (document.fonts?.ready) await document.fonts.ready;
+
+  if (showTitle) {
+    const { titleSize, band } = titleMetrics(size);
+    const fontSize = titleSize * scale;
+    const gap = Math.min(size.width, size.height) * 0.03 * 0.35 * scale;
+    const y = size.lockScreen ? height - (band * scale) / 2 - gap / 2 : (band * scale) / 2 + gap / 2;
+    ctx.fillStyle = dark ? '#ffffff' : onHex(accent);
+    ctx.font = `700 ${fontSize}px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(board.title || defaultTitle(board.year, board.period), width / 2, y, width - fontSize * 2);
+  }
+
+  const radius = Math.min(width, height) * 0.05 * corners;
+  const byId = new Map(board.items.map(item => [item._id, item]));
+  rects.forEach(rect => {
+    const item = byId.get(rect.id);
+    if (!item) return;
+    drawTile(ctx, item, images, accent, rect.x * width, rect.y * height, rect.w * width, rect.h * height, radius, dark);
+  });
+  return canvas;
+}
+
+function drawTile(ctx, item, images, accent, x, y, w, h, radius, dark) {
+  ctx.save();
+  roundRect(ctx, x, y, w, h, Math.min(radius, w / 2, h / 2));
+  ctx.clip();
+  if (item.type === 'text') {
+    const color = wordPaint(item.color, accent);
+    // A theme-coloured card on a theme-coloured wall would vanish, so it flips to black there.
+    const bg = !dark && color.bg === accent ? '#000000' : color.bg;
+    const fg = !dark && color.bg === accent ? '#ffffff' : color.fg;
+    ctx.fillStyle = bg;
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = fg;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    let fontSize = Math.min(w, h) * 0.16;
+    let lines;
+    do {
+      ctx.font = `700 ${fontSize}px ${FONT}`;
+      lines = wrapLines(ctx, item.text, w * 0.82);
+      fontSize *= 0.9;
+    } while ((lines.length * fontSize * 1.25 > h * 0.8 || lines.some(line => ctx.measureText(line).width > w * 0.86)) && fontSize > 6);
+    const lineH = (fontSize / 0.9) * 1.2;
+    lines.forEach((line, index) => ctx.fillText(line, x + w / 2, y + h / 2 + (index - (lines.length - 1) / 2) * lineH));
+  } else {
+    const image = images.get(item._id);
+    if (image) {
+      const ratio = Math.max(w / image.naturalWidth, h / image.naturalHeight);
+      const drawW = image.naturalWidth * ratio;
+      const drawH = image.naturalHeight * ratio;
+      ctx.drawImage(image, x + (w - drawW) / 2, y + (h - drawH) / 2, drawW, drawH);
+    } else {
+      ctx.fillStyle = 'rgba(120,120,128,.25)';
+      ctx.fillRect(x, y, w, h);
+    }
+  }
+  ctx.restore();
+}

@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext';
 import { Avatar, Icon, Switch, TextField } from '../components/ui';
 import { ChangePasswordDialog, EditProfileDialog } from '../components/ProfileDialogs';
 import { savePreference } from '../lib/consent';
+import { testAlarm, unlockAudio } from '../lib/alarm';
 import { apiError, formatDate, plural } from '../lib/format';
 
 const TIMEZONES = typeof Intl.supportedValuesOf === 'function'
@@ -29,11 +30,17 @@ export default function Profile() {
   const [dialog, setDialog] = useState(null); // 'profile' | 'password'
   const [reminders, setReminders] = useState({
     reminderTime: user?.reminderTime || '08:00',
+    reminderTime2: user?.reminderTime2 || '20:00',
+    alarmSound: user?.alarmSound !== false,
     timezone: user?.timezone || browserTimezone() || 'UTC',
     notificationsEnabled: user?.notificationsEnabled !== false
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [permission, setPermission] = useState(() => (typeof Notification === 'undefined' ? 'unsupported' : Notification.permission));
+  const allowNotifications = async () => {
+    try { setPermission(await Notification.requestPermission()); } catch { setPermission('denied'); }
+  };
 
   useEffect(() => {
     if (location.hash === '#settings') document.getElementById('settings')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -47,11 +54,14 @@ export default function Profile() {
   const set = (key, value) => setReminders(current => ({ ...current, [key]: value }));
   const detected = browserTimezone();
   const dirty = reminders.reminderTime !== (user?.reminderTime || '08:00')
+    || reminders.reminderTime2 !== (user?.reminderTime2 || '20:00')
+    || reminders.alarmSound !== (user?.alarmSound !== false)
     || reminders.timezone !== (user?.timezone || 'UTC')
     || reminders.notificationsEnabled !== (user?.notificationsEnabled !== false);
 
   const saveReminders = async event => {
     event.preventDefault();
+    if (reminders.reminderTime2 === reminders.reminderTime) { setError('Choose two different reminder times.'); return; }
     setSaving(true);
     setError('');
     try {
@@ -72,7 +82,8 @@ export default function Profile() {
     { icon: 'badge', label: 'Name', value: user?.name, onClick: () => setDialog('profile') },
     { icon: 'mail', label: 'Email', value: user?.email, onClick: () => setDialog('profile') },
     { icon: 'notes', label: 'Bio', value: user?.bio || 'Add a short bio', muted: !user?.bio, onClick: () => setDialog('profile') },
-    { icon: 'lock', label: 'Password', value: '••••••••', onClick: () => setDialog('password') }
+    { icon: 'lock', label: 'Password', value: '••••••••', onClick: () => setDialog('password') },
+    { icon: 'workspace_premium', label: 'Plan', value: user?.plan === 'premium' ? 'Premium' : user?.premiumRequestedAt ? 'Free · Premium requested' : 'Free', onClick: () => navigate('/community') }
   ];
 
   return (
@@ -108,7 +119,7 @@ export default function Profile() {
         <ul className="settings-list" role="list">
           {accountRows.map(row => (
             <li key={row.label}>
-              <button type="button" className="settings-row state-layer" onClick={row.onClick} aria-label={`Edit ${row.label.toLowerCase()}`}>
+              <button type="button" className="settings-row state-layer" onClick={row.onClick} aria-label={row.label === 'Plan' ? 'Plan: open Community' : `Edit ${row.label.toLowerCase()}`}>
                 <span className="settings-row-icon" aria-hidden="true"><Icon name={row.icon} /></span>
                 <span className="settings-row-label body-large">{row.label}</span>
                 <span className={`settings-row-value body-medium${row.muted ? ' muted' : ''}`}>{row.swatch && <span className="row-swatch" style={{ background: row.swatch }} aria-hidden="true" />}{row.value}</span>
@@ -120,18 +131,35 @@ export default function Profile() {
       </section>
 
       <form className="card settings-card" id="settings" onSubmit={saveReminders} noValidate>
-        <h2 className="title-medium card-title">Daily reminder</h2>
+        <h2 className="title-medium card-title">Daily reminders</h2>
         {error && <p className="inline-error" role="alert"><Icon name="error" />{error}</p>}
         <label className="setting-row" htmlFor="notifications-enabled">
           <Icon name="notifications_active" className="text-variant" />
           <span className="setting-row-text">
             <span className="body-large">Remind me to check in</span>
-            <span className="body-medium text-variant">Only sent when a goal still needs a check-in.</span>
+            <span className="body-medium text-variant">Twice a day. Only sent when a goal still needs a check-in.</span>
           </span>
           <Switch id="notifications-enabled" checked={reminders.notificationsEnabled} onChange={value => set('notificationsEnabled', value)} />
         </label>
         <div className="field-row">
-          <TextField label="Reminder time" type="time" value={reminders.reminderTime} onChange={event => set('reminderTime', event.target.value)} disabled={!reminders.notificationsEnabled} />
+          <TextField label="Morning reminder" type="time" value={reminders.reminderTime} onChange={event => set('reminderTime', event.target.value)} disabled={!reminders.notificationsEnabled} />
+          <TextField label="Evening reminder" type="time" value={reminders.reminderTime2} onChange={event => set('reminderTime2', event.target.value)} disabled={!reminders.notificationsEnabled} error={reminders.reminderTime2 === reminders.reminderTime ? 'Pick a different time from the morning reminder.' : undefined} />
+        </div>
+        <label className="setting-row" htmlFor="alarm-sound">
+          <Icon name="alarm" className="text-variant" />
+          <span className="setting-row-text">
+            <span className="body-large">Alarm sound</span>
+            <span className="body-medium text-variant">Rings at both times while Accountable is open in a tab.</span>
+          </span>
+          <Switch id="alarm-sound" checked={reminders.alarmSound} onChange={value => set('alarmSound', value)} disabled={!reminders.notificationsEnabled} />
+        </label>
+        <div className="alarm-tools">
+          <button type="button" className="btn btn-outlined state-layer" onClick={() => { unlockAudio(); testAlarm(); }}><Icon name="volume_up" />Test alarm</button>
+          {permission === 'default' && <button type="button" className="btn btn-tonal state-layer" onClick={allowNotifications}><Icon name="notifications_active" />Allow notifications</button>}
+          {permission === 'granted' && <span className="body-small text-variant"><Icon name="check_circle" size="18" /> Notifications on: you’ll also get a pop-up when the tab is in the background.</span>}
+          {permission === 'denied' && <span className="body-small text-variant">Notifications are blocked in your browser settings.</span>}
+        </div>
+        <div className="field-row">
           <TextField
             as="select"
             label="Time zone"

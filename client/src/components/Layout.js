@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext';
 import { ACCENT_PRESETS, accentHex, useTheme } from '../context/ThemeContext';
 import { Avatar, Icon, Menu } from './ui';
 import AccentDialog from './AccentDialog';
+import ReminderAlarm from './ReminderAlarm';
 import { savePreference } from '../lib/consent';
 
 // Board is the home page. `tab` marks the items shown in the phone tab bar (Inbox lives in the top bar).
@@ -15,7 +16,7 @@ const NAV = [
   { to: '/friends', label: 'Friends', icon: 'group', tab: true },
   { to: '/compete', label: 'Compete', icon: 'emoji_events', tab: true },
   { to: '/inbox', label: 'Inbox', icon: 'notifications' },
-  { to: '/community', label: 'Community', icon: 'diversity_1', tab: true }
+  { to: '/community', label: 'Community', icon: 'diversity_1', tab: true, premium: true }
 ];
 const SIDEBAR_KEY = 'accountable-sidebar-collapsed';
 const readCollapsed = () => { try { return window.localStorage.getItem(SIDEBAR_KEY) === '1'; } catch { return false; } };
@@ -29,6 +30,7 @@ export default function Layout() {
   const [accentOpen, setAccentOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const isPremium = user?.plan === 'premium';
 
   // Move focus to the page on navigation so screen readers announce the new view.
   useEffect(() => { document.getElementById('main-content')?.focus({ preventScroll: true }); window.scrollTo(0, 0); }, [location.pathname]);
@@ -63,7 +65,7 @@ export default function Layout() {
           <Icon name="add" /><span className="sidebar-label">Add vision board</span>
         </button>
         <nav className="sidebar-nav">
-          {NAV.map(({ to, label, icon }) => (
+          {NAV.map(({ to, label, icon, premium }) => (
             <NavLink key={to} to={to} className={({ isActive }) => `sidebar-item state-layer${isActive ? ' active' : ''}`} aria-label={collapsed ? (to === '/inbox' && unread > 0 ? `${label}, ${unread} unread` : label) : undefined} title={collapsed ? label : undefined}>
               {({ isActive }) => (
                 <>
@@ -73,6 +75,7 @@ export default function Layout() {
                   </span>
                   <span className="sidebar-label">{label}</span>
                   {to === '/inbox' && unread > 0 && !collapsed && <span className="badge" aria-label={`${unread} unread`}>{unreadLabel}</span>}
+                  {premium && !collapsed && <span className="premium-tag" aria-label={isPremium ? 'Premium' : 'Premium feature'}>{isPremium ? <Icon name="workspace_premium" filled /> : <Icon name="lock" />}Premium</span>}
                 </>
               )}
             </NavLink>
@@ -141,14 +144,18 @@ export default function Layout() {
 
       {/* Phone: floating tab bar */}
       <nav className="tab-bar" aria-label="Primary">
-        {NAV.filter(item => item.tab).map(({ to, label, icon }) => (
-          <NavLink key={to} to={to} className={({ isActive }) => `tab-bar-item state-layer${isActive ? ' active' : ''}`} aria-label={label} title={label}>
-            {({ isActive }) => <Icon name={icon} filled={isActive} />}
+        {NAV.filter(item => item.tab).map(({ to, label, icon, premium }) => (
+          <NavLink key={to} to={to} className={({ isActive }) => `tab-bar-item state-layer${isActive ? ' active' : ''}`} aria-label={premium && !isPremium ? `${label} (Premium)` : label} title={label}>
+            {({ isActive }) => <>
+              <Icon name={icon} filled={isActive} />
+              {premium && !isPremium && <span className="tab-lock" aria-hidden="true"><Icon name="lock" filled /></span>}
+            </>}
           </NavLink>
         ))}
       </nav>
 
       {accentOpen && <AccentDialog onClose={() => setAccentOpen(false)} />}
+      <ReminderAlarm />
     </div>
   );
 }

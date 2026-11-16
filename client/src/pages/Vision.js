@@ -6,6 +6,7 @@ import { accentHex, useTheme } from '../context/ThemeContext';
 import { ConfirmDialog, Dialog, EmptyState, ErrorBanner, Icon, Menu, Spinner, TextField } from '../components/ui';
 import { apiError, plural } from '../lib/format';
 import GalleryDialog from '../components/GalleryDialog';
+import BoardStudio from '../components/BoardStudio';
 import {
   FORMATS, PERIOD_GROUPS, THEMES, WORD_COLORS, canvasToBlob, defaultTitle, downloadBlob,
   loadBoardImages, periodOf, printBlob, rangeLabel, renderBoard, resizeUpload, wordColor
@@ -14,83 +15,6 @@ import {
 const DEFAULT_YEAR = 2027;
 const MIN_YEAR = 2024;
 const MAX_YEAR = 2035;
-
-/* ---------- Add from Pinterest ---------- */
-function PinterestDialog({ onClose, onAdd }) {
-  const [url, setUrl] = useState('');
-  const [found, setFound] = useState(null);
-  const [caption, setCaption] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-
-  const find = async event => {
-    event?.preventDefault();
-    if (!url.trim()) { setError('Paste a Pinterest link.'); return; }
-    setBusy(true);
-    setError('');
-    setFound(null);
-    try {
-      const response = await API.post('/vision/resolve', { url: url.trim() });
-      setFound(response.data);
-      setCaption('');
-    } catch (findError) {
-      setError(apiError(findError, 'Could not read that Pinterest link.'));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const paste = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (text) { setUrl(text.trim()); setError(''); }
-    } catch { setError('Clipboard access is blocked — paste with ⌘V / Ctrl+V instead.'); }
-  };
-
-  const add = async () => {
-    setBusy(true);
-    const ok = await onAdd({ type: 'image', source: 'pinterest', imageUrl: found.imageUrl, sourceUrl: found.sourceUrl, width: found.width, height: found.height, caption: caption.trim() });
-    if (ok) onClose(); else setBusy(false);
-  };
-
-  return (
-    <Dialog
-      as="form"
-      onSubmit={found ? event => { event.preventDefault(); add(); } : find}
-      icon="push_pin"
-      title="Add from Pinterest"
-      description="On Pinterest, open a pin → Share → Copy link, then paste it here."
-      onClose={onClose}
-      busy={busy}
-      actions={<>
-        <button type="button" className="btn btn-text state-layer" onClick={onClose} disabled={busy}>Cancel</button>
-        {found
-          ? <button type="submit" className="btn btn-filled state-layer" disabled={busy}><Icon name="add" />{busy ? 'Adding…' : 'Add to board'}</button>
-          : <button type="submit" className="btn btn-filled state-layer" disabled={busy}><Icon name="search" />{busy ? 'Finding…' : 'Find image'}</button>}
-      </>}
-    >
-      <div className="inline-add">
-        <TextField
-          label="Pin link"
-          value={url}
-          onChange={event => { setUrl(event.target.value); setFound(null); setError(''); }}
-          placeholder="https://pin.it/… or pinterest.com/pin/…"
-          inputMode="url"
-          autoComplete="off"
-          error={error}
-          data-autofocus
-        />
-        <button type="button" className="icon-btn tonal state-layer" onClick={paste} aria-label="Paste from clipboard" title="Paste"><Icon name="content_paste" /></button>
-      </div>
-      {found && (
-        <div className="pin-preview">
-          <img src={found.imageUrl} alt={found.title || 'Pinterest image preview'} />
-          <TextField label="Caption (optional)" value={caption} onChange={event => setCaption(event.target.value)} maxLength={80} placeholder={found.title || 'e.g. Morning runs by the sea'} counter={`${caption.length}/80`} />
-        </div>
-      )}
-    </Dialog>
-  );
-}
 
 /* ---------- Words card / caption editor ---------- */
 function WordsDialog({ item, onClose, onSave }) {
@@ -294,7 +218,7 @@ export default function Vision() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [title, setTitle] = useState('');
-  const [dialog, setDialog] = useState(null); // { type: 'pinterest' | 'words' | 'edit' | 'download' | 'remove', item? }
+  const [dialog, setDialog] = useState(null); // { type: 'gallery' | 'words' | 'edit' | 'download' | 'remove', item? }
   const [uploading, setUploading] = useState(false);
 
   const load = useCallback(async () => {
@@ -350,7 +274,7 @@ export default function Vision() {
       if (!(await addItem(item, { silent: true }))) break;
       added += 1;
     }
-    if (added) notify(`Added ${plural(added, 'pin')} to your board`);
+    if (added) notify(`Added ${plural(added, 'image')} to your board`);
     return added;
   };
 
@@ -449,8 +373,7 @@ export default function Vision() {
 
   const addActions = (
     <div className="vision-add-actions">
-      <button type="button" className="btn btn-filled state-layer" onClick={() => setDialog({ type: 'gallery' })}><Icon name="photo_library" />Gallery</button>
-      <button type="button" className="btn btn-tonal state-layer" onClick={() => setDialog({ type: 'pinterest' })}><Icon name="push_pin" />Paste pin link</button>
+      <button type="button" className="btn btn-filled state-layer" onClick={() => setDialog({ type: 'gallery' })}><Icon name="image_search" />Find images</button>
       <button type="button" className="btn btn-outlined state-layer" onClick={() => fileInput.current?.click()} disabled={uploading}><Icon name="upload" />{uploading ? 'Uploading…' : 'Upload'}</button>
       <button type="button" className="btn btn-outlined state-layer" onClick={() => setDialog({ type: 'words' })}><Icon name="format_quote" />Add words</button>
     </div>
@@ -465,12 +388,12 @@ export default function Vision() {
           <h1 className="headline-medium">Imagine your future<span className="italic-accent">,</span></h1>
           <p className="body-large text-variant">get inspired <span className="italic-accent">and act.</span></p>
         </div>
-        <button type="button" className="btn btn-filled state-layer" onClick={() => setDialog({ type: 'download' })} disabled={!items.length}><Icon name="download" />Download</button>
+        <button type="button" className="btn btn-outlined state-layer" onClick={() => setDialog({ type: 'download' })} disabled={!items.length}><Icon name="download" />Download</button>
       </header>
 
       <ol className="vision-steps" role="list" aria-label="How it works">
         <li className="vision-step"><span className="vision-step-num">1</span><span className="vision-step-text"><strong className="title-small">Imagine</strong><span className="body-small text-variant">Name your season and write the words you want to live by.</span></span></li>
-        <li><button type="button" className="vision-step-link state-layer" onClick={() => setDialog({ type: 'gallery' })}><span className="vision-step-num">2</span><span className="vision-step-text"><strong className="title-small">Get inspired</strong><span className="body-small text-variant">Open the gallery and collect pins from Pinterest.</span></span><Icon name="arrow_forward" /></button></li>
+        <li><button type="button" className="vision-step-link state-layer" onClick={() => setDialog({ type: 'gallery' })}><span className="vision-step-num">2</span><span className="vision-step-text"><strong className="title-small">Get inspired</strong><span className="body-small text-variant">Search Travel, Education or any topic and add images.</span></span><Icon name="arrow_forward" /></button></li>
         <li className="vision-step"><span className="vision-step-num">3</span><span className="vision-step-text"><strong className="title-small">Act</strong><span className="body-small text-variant">Turn any pin or words into a goal with daily steps.</span></span></li>
       </ol>
 
@@ -564,7 +487,6 @@ export default function Vision() {
                           { label: item.type === 'text' ? 'Edit words' : item.caption ? 'Edit caption' : 'Add caption', icon: 'edit', onSelect: () => setDialog({ type: 'edit', item }) },
                           index > 0 && { label: 'Move earlier', icon: 'arrow_back', onSelect: () => move(index, -1) },
                           index < items.length - 1 && { label: 'Move later', icon: 'arrow_forward', onSelect: () => move(index, 1) },
-                          item.sourceUrl && { label: 'Open on Pinterest', icon: 'open_in_new', onSelect: () => window.open(item.sourceUrl, '_blank', 'noopener,noreferrer') },
                           { divider: true },
                           { label: 'Remove', icon: 'delete', danger: true, onSelect: () => setDialog({ type: 'remove', item }) }
                         ]}
@@ -575,6 +497,14 @@ export default function Vision() {
               })}
             </ul>
           )}
+          {items.length > 0 && (
+            <div className="vision-generate">
+              <button type="button" className="btn btn-filled state-layer vision-generate-btn" onClick={() => setDialog({ type: 'studio' })}>
+                <Icon name="dashboard_customize" />Generate vision board
+              </button>
+              <span className="body-small vision-generate-hint">Puts all {plural(items.length, 'card')} on one big board you can arrange and download.</span>
+            </div>
+          )}
         </section>
       )}
 
@@ -582,13 +512,13 @@ export default function Vision() {
 
       {dialog?.type === 'new' && <NewBoardDialog initialYear={year} onClose={() => setDialog(null)} onCreate={createBoard} />}
       {dialog?.type === 'gallery' && <GalleryDialog onClose={() => setDialog(null)} onAddMany={addMany} />}
-      {dialog?.type === 'pinterest' && <PinterestDialog onClose={() => setDialog(null)} onAdd={addItem} />}
       {dialog?.type === 'words' && <WordsDialog onClose={() => setDialog(null)} onSave={addItem} />}
       {dialog?.type === 'edit' && <WordsDialog item={dialog.item} onClose={() => setDialog(null)} onSave={changes => updateItem(dialog.item, changes)} />}
       {dialog?.type === 'download' && board && <DownloadDialog board={{ ...board, title: board.title || placeholderTitle }} onClose={() => setDialog(null)} />}
+      {dialog?.type === 'studio' && board && <BoardStudio board={{ ...board, title: board.title || placeholderTitle }} onClose={() => setDialog(null)} />}
       {dialog?.type === 'remove' && (
         <ConfirmDialog title="Remove from board?" confirmLabel="Remove" onClose={() => setDialog(null)} onConfirm={() => removeItem(dialog.item)}>
-          This removes it from your {currentPeriod.label.toLowerCase()} {year} board. Pins stay on Pinterest.
+          This removes it from your {currentPeriod.label.toLowerCase()} {year} board.
         </ConfirmDialog>
       )}
     </div>
