@@ -81,7 +81,8 @@ const ThemeContext = createContext(null);
 
 export const ThemeProvider = ({ children }) => {
   const { user, updateUser } = useAuth();
-  const [theme, setTheme] = useState(() => { const stored = read('accountable-theme', 'system'); return ['light', 'dark', 'system'].includes(stored) ? stored : 'system'; });
+  // Light by default for everyone; dark only if the visitor chose it. (An old stored 'system' counts as the default.)
+  const [theme, setTheme] = useState(() => (read('accountable-theme', 'light') === 'dark' ? 'dark' : 'light'));
   const [accent, setAccentState] = useState(() => read('accountable-accent', 'lime'));
   const [system, setSystem] = useState(systemMode);
   const mode = theme === 'system' ? system : theme;

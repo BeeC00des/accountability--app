@@ -22,7 +22,9 @@ const { sendDailyReminders } = require('./services/reminderService');
 
 const app = express();
 app.disable('x-powered-by'); // don't advertise the server framework
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:3000', credentials: true }));
+// CLIENT_URL may list several sites, comma-separated; a trailing slash is ignored.
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:3000').split(',').map(url => url.trim().replace(/\/+$/, '')).filter(Boolean);
+app.use(cors({ origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins, credentials: true }));
 app.use(express.json({ limit: '1mb' })); // room for a resized photo upload (profile or vision board)
 
 app.get('/api/health', (req, res) => {

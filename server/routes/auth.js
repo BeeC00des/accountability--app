@@ -183,7 +183,7 @@ router.post('/forgot-password', [body('email').isEmail().normalizeEmail().withMe
     const token = crypto.randomBytes(32).toString('hex');
     await User.updateOne({ _id: user._id }, { passwordResetToken: hashToken(token), passwordResetExpires: new Date(Date.now() + RESET_TTL_MS), passwordResetRequestedAt: new Date() });
 
-    const base = (process.env.CLIENT_URL || 'http://localhost:3000').split(',')[0].replace(/\/$/, '');
+    const base = (process.env.CLIENT_URL || 'http://localhost:3000').split(',')[0].trim().replace(/\/+$/, '');
     const link = `${base}/reset-password?token=${token}`;
     // Sent in the background: the reply is instant and identical whether or not the account exists.
     sendMail({
