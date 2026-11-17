@@ -53,16 +53,22 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const register = useCallback(async (name, email, password, referralCode) => {
-    const response = await API.post('/auth/register', { name, email, password, timezone: browserTimezone(), referralCode: referralCode || undefined });
+    // Carry over the theme colour picked on the website so the new account looks the same.
+    let accent;
+    try { accent = window.localStorage.getItem('accountable-accent') || undefined; } catch { accent = undefined; }
+    const response = await API.post('/auth/register', { name, email, password, timezone: browserTimezone(), referralCode: referralCode || undefined, accent });
     writeToken(response.data.token);
     setUser(response.data.user);
     return response.data;
   }, []);
 
+  /** Signs in with a token the server already issued (e.g. after resetting a password). */
+  const signInWith = useCallback((token, nextUser) => { writeToken(token); setUser(nextUser); }, []);
+
   // Merge partial updates (e.g. a new streak after check-in) into the signed-in user.
   const updateUser = useCallback(patch => setUser(previous => (previous ? { ...previous, ...patch } : previous)), []);
 
-  const value = useMemo(() => ({ user, loading, login, register, logout, updateUser, API }), [user, loading, login, register, logout, updateUser]);
+  const value = useMemo(() => ({ user, loading, login, register, logout, updateUser, signInWith, API }), [user, loading, login, register, logout, updateUser, signInWith]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 

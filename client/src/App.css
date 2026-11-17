@@ -942,3 +942,9 @@ html:has(.app-shell), body:has(.app-shell) { background: color-mix(in srgb, var(
 
 /* Today: a little more breathing room between the streak/calendar board and the report */
 .today-page .report-card { margin-top: 56px; }
+
+/* Password reset */
+.auth-forgot { display: block; justify-self: center; margin: -2px auto 6px; color: var(--tint); font-weight: 600; text-align: center; text-decoration: none; }
+.auth-forgot:hover { text-decoration: underline; }
+.auth-done { display: grid; gap: 16px; }
+.auth-done .body-medium { padding: 12px 14px; border-radius: var(--radius-md); background: var(--fill-2); }

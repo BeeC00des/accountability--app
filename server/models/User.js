@@ -112,7 +112,13 @@ const userSchema = new mongoose.Schema({
   streakYear: {
     type: Number,
     default: null
-  }
+  },
+  // Password reset: only a SHA-256 hash of the emailed token is stored; it expires after an hour.
+  passwordResetToken: { type: String, select: false },
+  passwordResetExpires: { type: Date, select: false },
+  passwordResetRequestedAt: { type: Date, select: false },
+  // Sign-ins issued before this moment are no longer accepted (set when a password is reset).
+  passwordChangedAt: { type: Date }
 }, {
   timestamps: true
 });
@@ -133,6 +139,9 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 userSchema.methods.toJSON = function() {
   const obj = this.toObject();
   delete obj.password;
+  delete obj.passwordResetToken;
+  delete obj.passwordResetExpires;
+  delete obj.passwordResetRequestedAt;
   return obj;
 };
 

@@ -18,7 +18,12 @@ const protect = async (req, res, next) => {
 
     if (!user) {
       return res.status(401).json({ message: 'User not found.' });
-    } req.user = user;
+    }
+    // A password reset signs out every session that started before it.
+    if (user.passwordChangedAt && decoded.iat * 1000 < user.passwordChangedAt.getTime() - 1000) {
+      return res.status(401).json({ message: 'Your password was changed. Please sign in again.' });
+    }
+    req.user = user;
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {

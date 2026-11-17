@@ -78,6 +78,7 @@ export default function AuthPage() {
               <Icon name={showPassword ? 'visibility_off' : 'visibility'} />
             </button>
           </div>
+          {!isRegister && <Link to="/forgot-password" className="auth-forgot body-medium">Forgot password?</Link>}
           <div className="auth-actions">
             <button type="button" className="btn btn-text state-layer" onClick={() => switchMode(isRegister ? 'login' : 'register')}>
               {isRegister ? 'Sign in instead' : 'Create account'}

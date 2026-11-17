@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const User = require('../models/User');
@@ -25,7 +26,8 @@ router.post('/register', [
   body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
   body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
   body('timezone').optional().isString(),
-  body('referralCode').optional().isString().isLength({ max: 20 })
+  body('referralCode').optional().isString().isLength({ max: 20 }),
+  body('accent').optional().matches(/^(lime|ocean|coral|lavender|mint|amber|graphite|#[0-9a-fA-F]{6})$/)
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ message: errors.array()[0].msg, errors: errors.array() });
@@ -37,7 +39,9 @@ router.post('/register', [
     // A valid referral code credits the inviter and connects you as friends straight away.
     const code = typeof req.body.referralCode === 'string' ? req.body.referralCode.replace(/[^a-z0-9]/gi, '').toUpperCase().replace(/^AC/, '') : '';
     const referrer = code ? await User.findOne({ friendCode: `AC-${code}` }).select('_id') : null;
-    const user = await User.create({ name, email, password, timezone, referredBy: referrer?._id || null, friends: referrer ? [referrer._id] : [] });
+    // Keep the theme colour picked on the website, so the app looks the same after sign-up.
+    const accent = req.body.accent || undefined;
+    const user = await User.create({ name, email, password, timezone, accent, referredBy: referrer?._id || null, friends: referrer ? [referrer._id] : [] });
     if (referrer) await User.updateOne({ _id: referrer._id }, { $addToSet: { friends: user._id } });
     const token = generateToken(user._id);
     res.status(201).json({ message: 'Account created successfully!', token, user: user.toJSON() });
@@ -157,6 +161,71 @@ router.put('/password', protect, [
   } catch (error) {
     console.error('Change password error:', error);
     res.status(500).json({ message: 'Could not update your password.' });
+  }
+});
+
+/* ---------- Password reset ---------- */
+const RESET_TTL_MS = 60 * 60 * 1000; // links work for 1 hour
+const RESET_COOLDOWN_MS = 60 * 1000; // one email per minute per account
+const hashToken = token => crypto.createHash('sha256').update(token).digest('hex');
+const GENERIC_RESET = 'If an account exists for that email, we’ve sent a link to reset your password. Check your inbox (and spam).';
+
+// POST /api/auth/forgot-password { email } - Emails a one-time reset link. Same reply whether or not the account exists.
+router.post('/forgot-password', [body('email').isEmail().normalizeEmail().withMessage('Enter a valid email address.')], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ message: errors.array()[0].msg });
+  try {
+    const user = await User.findOne({ email: req.body.email }).select('+passwordResetRequestedAt');
+    if (!user) return res.json({ message: GENERIC_RESET });
+    if (user.passwordResetRequestedAt && Date.now() - user.passwordResetRequestedAt.getTime() < RESET_COOLDOWN_MS) {
+      return res.json({ message: GENERIC_RESET });
+    }
+    const token = crypto.randomBytes(32).toString('hex');
+    await User.updateOne({ _id: user._id }, { passwordResetToken: hashToken(token), passwordResetExpires: new Date(Date.now() + RESET_TTL_MS), passwordResetRequestedAt: new Date() });
+
+    const base = (process.env.CLIENT_URL || 'http://localhost:3000').split(',')[0].replace(/\/$/, '');
+    const link = `${base}/reset-password?token=${token}`;
+    // Sent in the background: the reply is instant and identical whether or not the account exists.
+    sendMail({
+      to: user.email,
+      subject: 'Reset your accounTable password',
+      text: `Hi ${user.name},\n\nSomeone (hopefully you) asked to reset your accounTable password. This link works for 1 hour:\n${link}\n\nIf you didn't ask for this, ignore this email - your password stays the same.`,
+      html: `<div style="font:15px/1.5 -apple-system,Segoe UI,sans-serif;color:#111;max-width:520px">
+        <h2 style="margin:0 0 12px">Reset your password</h2>
+        <p style="margin:0 0 16px">Hi ${escape(user.name)}, someone (hopefully you) asked to reset your accounTable password. This link works for 1 hour.</p>
+        <p style="margin:0 0 20px"><a href="${link}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#111;color:#fff;text-decoration:none;font-weight:600">Choose a new password</a></p>
+        <p style="margin:0;color:#777;font-size:13px">If you didn’t ask for this, ignore this email — your password stays the same.</p></div>`
+    }).then(mail => {
+      // Without email set up (e.g. local development), the link is printed for the person running the server.
+      if (!mail.sent) console.warn(`Password reset email not sent (${mail.reason}). Reset link for ${user.email}: ${link}`);
+    });
+    res.json({ message: GENERIC_RESET });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ message: 'Could not start the reset. Please try again.' });
+  }
+});
+
+// POST /api/auth/reset-password { token, password } - Sets a new password and signs you in.
+router.post('/reset-password', [
+  body('token').isString().isLength({ min: 64, max: 64 }).withMessage('This reset link is invalid.'),
+  body('password').isLength({ min: 8 }).withMessage('Use at least 8 characters.')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ message: errors.array()[0].msg });
+  try {
+    const user = await User.findOne({ passwordResetToken: hashToken(req.body.token), passwordResetExpires: { $gt: new Date() } })
+      .select('+password +passwordResetToken +passwordResetExpires');
+    if (!user) return res.status(400).json({ message: 'This reset link has expired or was already used. Request a new one.' });
+    user.password = req.body.password; // hashed by the pre-save hook
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    user.passwordChangedAt = new Date(Date.now() - 1000);
+    await user.save();
+    res.json({ message: 'Password updated. You’re signed in.', token: generateToken(user._id), user: user.toJSON() });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ message: 'Could not reset your password. Please try again.' });
   }
 });
 

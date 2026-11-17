@@ -9,6 +9,8 @@ import { ThemeProvider } from './context/ThemeContext';
 import Layout from './components/Layout';
 import { Spinner } from './components/ui';
 import AuthPage from './pages/AuthPage';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Today from './pages/Dashboard';
 import Goals from './pages/Goals';
 import Friends from './pages/Friends';
@@ -48,6 +50,8 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/auth" element={<PublicRoute><AuthPage /></PublicRoute>} />
+            <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/" element={<HomeRoute />} />
             <Route path="/changelog" element={<Changelog />} />
             <Route path="/privacy" element={<Privacy />} />

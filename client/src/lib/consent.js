@@ -4,7 +4,7 @@
  *  - preferences: appearance, theme color, sidebar state and dismissed tips (optional)
  */
 const CONSENT_KEY = 'accountable-consent';
-export const PREFERENCE_KEYS = ['accountable-theme', 'accountable-accent', 'accountable-sidebar-collapsed', 'accountable-setup-dismissed', 'accountable-reminder-set', 'accountable-studio'];
+export const PREFERENCE_KEYS = ['accountable-theme', 'accountable-accent', 'accountable-sidebar-collapsed', 'accountable-setup-dismissed', 'accountable-reminder-set', 'accountable-studio', 'accountable-accent-pending'];
 
 export const getConsent = () => {
   try { return { preferences: true, ...JSON.parse(window.localStorage.getItem(CONSENT_KEY) || '{}') }; } catch { return { preferences: true }; }

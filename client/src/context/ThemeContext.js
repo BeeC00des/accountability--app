@@ -76,6 +76,7 @@ const read = (key, fallback) => { try { return window.localStorage.getItem(key) 
 const write = savePreference; // respects the visitor's storage consent
 const systemMode = () => (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 
+const PENDING_KEY = 'accountable-accent-pending';
 const ThemeContext = createContext(null);
 
 export const ThemeProvider = ({ children }) => {
@@ -93,8 +94,27 @@ export const ThemeProvider = ({ children }) => {
     return () => query.removeEventListener('change', onChange);
   }, []);
 
-  // The signed-in user's saved brand color wins over this device's last choice.
-  useEffect(() => { if (user?.accent) { setAccentState(user.accent); write('accountable-accent', user.accent); } }, [user?.accent]);
+  // Another open tab (the website or the app) changed the colour: follow it here too.
+  useEffect(() => {
+    const onStorage = event => { if (event.key === 'accountable-accent' && event.newValue) setAccentState(event.newValue); };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  // On sign-in: a colour picked on the website while signed out wins and is saved to the account,
+  // so the dashboard looks the same. Otherwise the account's saved colour is used.
+  useEffect(() => {
+    if (!user?._id) return;
+    const pending = read(PENDING_KEY, '');
+    if (pending) {
+      try { window.localStorage.removeItem(PENDING_KEY); } catch { /* storage unavailable */ }
+      setAccentState(pending);
+      write('accountable-accent', pending);
+      if (pending !== user.accent) API.put('/auth/profile', { accent: pending }).then(() => updateUser({ accent: pending })).catch(() => {});
+      return;
+    }
+    if (user.accent) { setAccentState(user.accent); write('accountable-accent', user.accent); }
+  }, [user?._id, user?.accent, updateUser]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -114,6 +134,7 @@ export const ThemeProvider = ({ children }) => {
   const setAccent = useCallback(async value => {
     setAccentState(value);
     write('accountable-accent', value);
+    if (!user) write(PENDING_KEY, value); // remembered until the next sign-in, then applied to the account
     if (user) {
       try { await API.put('/auth/profile', { accent: value }); updateUser({ accent: value }); } catch { /* kept locally */ }
     }
