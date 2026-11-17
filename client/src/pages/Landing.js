@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import { Avatar, Icon } from '../components/ui';
@@ -33,6 +33,7 @@ const Title = ({ as: Tag = 'h2', id, lead, accent, tail = '', className = 'lt-h2
 
 const Eyebrow = ({ children }) => <p className="lt-eyebrow">{children}</p>;
 
+const STORY_INTERVAL = 5000; // ms each How-it-works card stays before swiping left
 const STORY = [
   { id: 'imagine', tab: 'Picture it', icon: 'auto_awesome', tone: 'pink', title: 'See the year before you live it', text: 'Choose a year, a half or a quarter, then fill a board with the words and pictures of the life you’re working towards.' },
   { id: 'inspire', tab: 'Get inspired', icon: 'photo_library', tone: 'lavender', title: 'Borrow ideas from anywhere', text: 'Browse hand-picked Pinterest boards, paste a pin you’ve saved or upload your own photos. Print it for the wall or set it as your wallpaper.' },
@@ -67,7 +68,7 @@ const LEADERS = [
 ];
 
 const FAQ = [
-  { q: 'Is accounTable free?', a: 'Yes. Vision boards, goals, streaks, friends and challenges are all free.' },
+  { q: 'Is doerstab free?', a: 'Yes. Vision boards, goals, streaks, friends and challenges are all free.' },
   { q: 'Do I need a Pinterest account?', a: 'No. Browse the featured gallery, paste any public pin link or upload your own pictures. If you do use Pinterest, you can add your own public boards too.' },
   { q: 'How do streaks work?', a: 'Finish at least one step or one check-in on a given day and that day counts. Your streak is the number of days in a row you’ve shown up.' },
   { q: 'Can I print my vision board or use it as a wallpaper?', a: 'Yes. Download a 300 dpi A4 print, a 4K desktop wallpaper, or a lock screen for your phone or tablet in one tap.' },
@@ -89,7 +90,7 @@ function Phone({ children, className = '', dark = false }) {
 
 const PhoneAppBar = () => (
   <div className="lt-appbar">
-    <span className="lt-appbar-brand"><span className="lt-ring" />accounTable</span>
+    <span className="lt-appbar-brand"><span className="lt-ring" />doerstab</span>
     <Icon name="notifications" />
   </div>
 );
@@ -106,11 +107,11 @@ function WebAppMock({ year }) {
     <div className="lt-browser">
       <div className="lt-browser-bar">
         <span className="lt-browser-dots"><span /><span /><span /></span>
-        <span className="lt-browser-url"><Icon name="lock" />accountable.app/today</span>
+        <span className="lt-browser-url"><Icon name="lock" />doerstab.app/today</span>
       </div>
       <div className="lt-web">
         <aside className="lt-web-side">
-          <span className="lt-web-brand"><span className="lt-web-mark"><Icon name="local_fire_department" filled /></span>accounTable</span>
+          <span className="lt-web-brand"><span className="lt-web-mark"><Icon name="local_fire_department" filled /></span>doerstab</span>
           <span className="lt-web-cta"><Icon name="add" />Add vision board</span>
           {nav.map(([icon, label]) => (
             <span key={label} className={`lt-web-nav${label === 'Today' ? ' on' : ''}`}><Icon name={icon} filled={label === 'Today'} />{label}</span>
@@ -198,11 +199,102 @@ export default function Landing() {
   const [story, setStory] = useState(0);
   const [person, setPerson] = useState(0);
   const tabRefs = useRef([]);
+
+  /* ---------- How it works: auto-swiping carousel ---------- */
+  // `pos` is the track position; STORY.length is a copy of the first card placed after the last,
+  // so the loop keeps moving left and then snaps back to the real first card without a visible jump.
+  const [pos, setPos] = useState(0);
+  const [snapping, setSnapping] = useState(false);
+  // The copy of the last card (left of card 1) is only shown while it's needed, so card 1 looks
+  // exactly like the first time; after looping back it fades out instead of disappearing.
+  const [ghostLeft, setGhostLeft] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [drag, setDrag] = useState(0);
+  const [reducedMotion] = useState(() => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false);
+  const [pageHidden, setPageHidden] = useState(() => document.hidden);
+  const dragRef = useRef(null);
+  const paused = hovered || reducedMotion || pageHidden || drag !== 0;
+
+  const goTo = useCallback(index => { setSnapping(false); setStory(index); setPos(index); }, []);
+  const next = useCallback(() => {
+    setSnapping(false);
+    setStory(current => {
+      const following = (current + 1) % STORY.length;
+      setPos(following === 0 ? STORY.length : following); // last → the copy of the first, still moving left
+      return following;
+    });
+  }, []);
+  const previous = useCallback(() => {
+    setSnapping(false);
+    setStory(current => {
+      const before = (current - 1 + STORY.length) % STORY.length;
+      setPos(current === 0 ? -1 : before); // first → the copy of the last, still moving right
+      return before;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (paused) return undefined;
+    const timer = setTimeout(next, STORY_INTERVAL);
+    return () => clearTimeout(timer);
+  }, [story, paused, next]);
+
+  useEffect(() => {
+    const onVisibility = () => setPageHidden(document.hidden);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
+
+  // After sliding onto the copy of the first card, jump (without animation) to the real one.
+  const onTrackTransitionEnd = event => {
+    if (event.target !== event.currentTarget || event.propertyName !== 'transform') return;
+    if (pos === STORY.length) { setGhostLeft(true); setSnapping(true); setPos(0); }
+    else if (pos === -1) { setSnapping(true); setPos(STORY.length - 1); }
+  };
+  useEffect(() => {
+    if (!snapping) return undefined;
+    const frame = requestAnimationFrame(() => requestAnimationFrame(() => setSnapping(false)));
+    return () => cancelAnimationFrame(frame);
+  }, [snapping]);
+  // Once back on card 1, fade the left copy away so the card sits exactly as it did at the start.
+  useEffect(() => {
+    if (!ghostLeft || snapping || pos !== 0) return undefined;
+    const timer = setTimeout(() => setGhostLeft(false), 60);
+    return () => clearTimeout(timer);
+  }, [ghostLeft, snapping, pos]);
+
+  // Swipe / drag: the card follows the finger; a short flick or a third of the width changes card.
+  const onPointerDown = event => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    const card = event.currentTarget.querySelector('.lt-slide');
+    dragRef.current = { x: event.clientX, y: event.clientY, width: card ? card.offsetWidth : event.currentTarget.offsetWidth, started: Date.now(), horizontal: null };
+  };
+  const onPointerMove = event => {
+    const start = dragRef.current;
+    if (!start) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (start.horizontal === null && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+      start.horizontal = Math.abs(dx) > Math.abs(dy);
+      if (start.horizontal) event.currentTarget.setPointerCapture?.(event.pointerId);
+    }
+    if (start.horizontal) setDrag(dx);
+  };
+  const onPointerUp = () => {
+    const start = dragRef.current;
+    dragRef.current = null;
+    if (!start || !start.horizontal) { setDrag(0); return; }
+    // A quarter of a card, or a quick flick, changes card.
+    const fast = Date.now() - start.started < 400 && Math.abs(drag) > 40;
+    if (drag < -start.width / 4 || (fast && drag < 0)) next();
+    else if (drag > start.width / 4 || (fast && drag > 0)) previous();
+    setDrag(0);
+  };
   const year = new Date().getFullYear() + 1;
 
   useEffect(() => {
     const previous = document.title;
-    document.title = 'accounTable — Imagine your future, get inspired and act';
+    document.title = 'doerstab — Imagine your future, get inspired and act';
     return () => { document.title = previous; };
   }, []);
 
@@ -227,9 +319,9 @@ export default function Landing() {
     const delta = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
     if (!delta) return;
     event.preventDefault();
-    const next = (story + delta + STORY.length) % STORY.length;
-    setStory(next);
-    tabRefs.current[next]?.focus();
+    const target = (story + delta + STORY.length) % STORY.length;
+    goTo(target);
+    tabRefs.current[target]?.focus();
   };
 
   const featureCard = feature => (
@@ -247,9 +339,9 @@ export default function Landing() {
       {/* Floating pill navigation */}
       <header className="landing-header">
         <div className="landing-container landing-header-inner">
-          <a href="#top" className="landing-brand" aria-label="accounTable home">
+          <a href="#top" className="landing-brand" aria-label="doerstab home">
             <span className="brand-mark" aria-hidden="true"><Icon name="local_fire_department" filled /></span>
-            <span className="title-medium">accounTable</span>
+            <span className="title-medium">doerstab</span>
           </a>
           <nav className="landing-nav" aria-label="Main">
             {NAV.map(item => <a key={item.href} href={item.href} className="landing-nav-link">{item.label}</a>)}
@@ -341,28 +433,46 @@ export default function Landing() {
                   aria-controls={`story-panel-${item.id}`}
                   tabIndex={story === index ? 0 : -1}
                   className="lt-tab"
-                  onClick={() => setStory(index)}
+                  onClick={() => goTo(index)}
                   onKeyDown={onTabKey}
                 >
                   <Icon name={item.icon} />{item.tab}
+                  {story === index && !reducedMotion && <span key={`${story}-${paused}`} className={`lt-tab-progress${paused ? ' paused' : ''}`} style={{ animationDuration: `${STORY_INTERVAL}ms` }} aria-hidden="true" />}
                 </button>
               ))}
             </div>
           </div>
-          <div className="lt-carousel">
-            <div className="lt-track" style={{ '--index': story }}>
-              {STORY.map((item, index) => (
+          <div
+            className={`lt-carousel${drag ? ' dragging' : ''}`}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            onFocus={() => setHovered(true)}
+            onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setHovered(false); }}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
+          >
+            <div className={`lt-track${snapping ? ' snapping' : ''}`} style={{ '--index': pos + 1, '--drag': `${drag}px` }} onTransitionEnd={onTrackTransitionEnd}>
+              {/* Copies at both ends (last card first, then the first two again) make the loop seamless:
+                  the cards peeking in on either side always match what comes next. */}
+              {[
+                { item: STORY[STORY.length - 1], step: STORY.length - 1, at: -1, copy: 'copy-last' },
+                ...STORY.map((item, index) => ({ item, step: index, at: index })),
+                { item: STORY[0], step: 0, at: STORY.length, copy: 'copy-first' },
+                { item: STORY[1], step: 1, at: STORY.length + 1, copy: 'copy-second' }
+              ].map(({ item, step, at, copy }) => (
                 <article
-                  key={item.id}
-                  id={`story-panel-${item.id}`}
-                  role="tabpanel"
-                  aria-labelledby={`story-tab-${item.id}`}
-                  aria-hidden={story !== index}
-                  className={`lt-slide lt-tone-${item.tone}${story === index ? ' active' : ''}`}
+                  key={copy || item.id}
+                  id={copy ? undefined : `story-panel-${item.id}`}
+                  role={copy ? undefined : 'tabpanel'}
+                  aria-labelledby={copy ? undefined : `story-tab-${item.id}`}
+                  aria-hidden={copy ? true : story !== step}
+                  className={`lt-slide lt-tone-${item.tone}${pos === at ? ' active' : ''}${copy === 'copy-last' && pos > -1 && !ghostLeft ? ' lt-slide-ghost' : ''}`}
                 >
                   <Zigzag />
                   <div className="lt-slide-copy">
-                    <span className="lt-step-num">0{index + 1}</span>
+                    <span className="lt-step-num">0{step + 1}</span>
                     <h3>{item.title}</h3>
                     <p>{item.text}</p>
                   </div>
@@ -405,7 +515,7 @@ export default function Landing() {
           <div className="landing-container lt-center">
             <Eyebrow>Built for</Eyebrow>
             <Title id="people-heading" lead="Every kind of" accent="goal." />
-            <p className="lt-sub">A few examples of how people use accounTable. Tap a face to read their story.</p>
+            <p className="lt-sub">A few examples of how people use doerstab. Tap a face to read their story.</p>
           </div>
           <div className="landing-container lt-people-stage">
             <div className="lt-people-picks" role="group" aria-label="Choose an example">

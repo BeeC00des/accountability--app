@@ -188,11 +188,11 @@ router.post('/forgot-password', [body('email').isEmail().normalizeEmail().withMe
     // Sent in the background: the reply is instant and identical whether or not the account exists.
     sendMail({
       to: user.email,
-      subject: 'Reset your accounTable password',
-      text: `Hi ${user.name},\n\nSomeone (hopefully you) asked to reset your accounTable password. This link works for 1 hour:\n${link}\n\nIf you didn't ask for this, ignore this email - your password stays the same.`,
+      subject: 'Reset your doerstab password',
+      text: `Hi ${user.name},\n\nSomeone (hopefully you) asked to reset your doerstab password. This link works for 1 hour:\n${link}\n\nIf you didn't ask for this, ignore this email - your password stays the same.`,
       html: `<div style="font:15px/1.5 -apple-system,Segoe UI,sans-serif;color:#111;max-width:520px">
         <h2 style="margin:0 0 12px">Reset your password</h2>
-        <p style="margin:0 0 16px">Hi ${escape(user.name)}, someone (hopefully you) asked to reset your accounTable password. This link works for 1 hour.</p>
+        <p style="margin:0 0 16px">Hi ${escape(user.name)}, someone (hopefully you) asked to reset your doerstab password. This link works for 1 hour.</p>
         <p style="margin:0 0 20px"><a href="${link}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#111;color:#fff;text-decoration:none;font-weight:600">Choose a new password</a></p>
         <p style="margin:0;color:#777;font-size:13px">If you didn’t ask for this, ignore this email — your password stays the same.</p></div>`
     }).then(mail => {

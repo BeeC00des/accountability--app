@@ -93,7 +93,7 @@ export function EditProfileDialog({ onClose }) {
       as="form"
       onSubmit={save}
       title="Edit profile"
-      description="This is how friends see you on accounTable."
+      description="This is how friends see you on doerstab."
       onClose={onClose}
       busy={saving}
       actions={<>

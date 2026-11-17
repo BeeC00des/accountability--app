@@ -147,7 +147,7 @@ export default function Inbox() {
               const kind = kindOf(reminder);
               const automated = reminder.type === 'automated';
               const person = box === 'sent' ? reminder.to : reminder.from;
-              const headline = box === 'sent' ? `To ${person?.name || 'a friend'}` : automated ? 'accounTable' : person?.name || 'A friend';
+              const headline = box === 'sent' ? `To ${person?.name || 'a friend'}` : automated ? 'doerstab' : person?.name || 'A friend';
               const canCheckIn = box === 'inbox' && (automated || reminder.type === 'manual');
               const isChallenge = reminder.type === 'challenge';
               const canReply = box === 'inbox' && !automated && !isChallenge && person?._id;

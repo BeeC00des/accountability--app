@@ -57,7 +57,7 @@ export default function Changelog() {
   return (
     <PublicShell title="Changelog">
       <p className="landing-eyebrow">Changelog</p>
-      <h1 className="landing-h2">What’s <span className="italic-accent">new</span> in accounTable</h1>
+      <h1 className="landing-h2">What’s <span className="italic-accent">new</span> in doerstab</h1>
       <ol className="changelog" role="list">
         {RELEASES.map(release => (
           <li key={`${release.date}-${release.title}`} className="changelog-entry">

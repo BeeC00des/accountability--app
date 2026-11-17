@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { API } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { Avatar, ConfirmDialog, Dialog, EmptyState, ErrorBanner, Icon, Spinner, TextField } from '../components/ui';
-import { apiError, dayKey, formatDate, plural } from '../lib/format';
+import { apiError, dayKey, formatDate, plural, firstName } from '../lib/format';
 
 const RANGES = [
   { value: 'week', label: 'This week' },
@@ -62,7 +62,7 @@ function ChallengeDialog({ friends, initialFriendId, onClose, onCreated }) {
           {friends.map(friend => (
             <button key={friend._id} type="button" role="radio" aria-checked={form.opponentId === friend._id} className={`friend-pick-option state-layer${form.opponentId === friend._id ? ' selected' : ''}`} onClick={() => set('opponentId', friend._id)}>
               <Avatar name={friend.name} src={friend.avatar} size="sm" />
-              <span className="label-medium">{friend.name.split(' ')[0]}</span>
+              <span className="label-medium">{firstName(friend.name)}</span>
             </button>
           ))}
         </div>
@@ -98,7 +98,7 @@ function DuelBar({ challenge }) {
   const unit = challenge.metric === 'xp' ? 'XP' : 'check-ins';
   return (
     <div className="duel">
-      {[['You', challenge.me, challenge.myScore, true], [challenge.them.name.split(' ')[0], challenge.them, challenge.theirScore, false]].map(([label, person, score, mine]) => (
+      {[['You', challenge.me, challenge.myScore, true], [firstName(challenge.them?.name), challenge.them, challenge.theirScore, false]].map(([label, person, score, mine]) => (
         <div key={label} className="duel-row">
           <Avatar name={person.name} src={person.avatar} size="sm" />
           <span className="duel-name label-medium">{label}</span>
@@ -185,7 +185,7 @@ export default function Compete() {
           {challenge.phase === 'live' ? `${plural(challenge.daysLeft, 'day')} left`
             : challenge.phase === 'upcoming' ? `Starts ${prettyKey(challenge.startKey)}`
               : challenge.phase === 'pending' ? (challenge.role === 'opponent' ? 'Needs your answer' : 'Waiting for reply')
-                : challenge.phase === 'completed' ? (challenge.isTie ? 'Tie' : challenge.iWon ? 'You won 🎉' : `${challenge.them.name.split(' ')[0]} won`)
+                : challenge.phase === 'completed' ? (challenge.isTie ? 'Tie' : challenge.iWon ? 'You won 🎉' : `${firstName(challenge.them?.name)} won`)
                   : challenge.phase === 'declined' ? 'Declined' : 'Cancelled'}
         </span>
       </div>
@@ -250,7 +250,7 @@ export default function Compete() {
                   <li key={person._id} className={`podium-spot rank-${person.rank}${person.isMe ? ' me' : ''}`}>
                     <Avatar name={person.name} src={person.avatar} size="lg" />
                     <span className="podium-medal" aria-label={`Rank ${person.rank}`}>{['🥇', '🥈', '🥉'][person.rank - 1] || person.rank}</span>
-                    <span className="title-small podium-name">{person.isMe ? 'You' : person.name.split(' ')[0]}</span>
+                    <span className="title-small podium-name">{person.isMe ? 'You' : firstName(person.name)}</span>
                     <span className="podium-xp"><strong>{person.xp}</strong> XP</span>
                     <span className="podium-block" aria-hidden="true" />
                   </li>

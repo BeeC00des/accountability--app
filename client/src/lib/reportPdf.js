@@ -40,7 +40,7 @@ export async function downloadReportPdf({ report, rangeMeta, snapshot, accent = 
 
   /* ---------- Header band ---------- */
   doc.setFillColor(...accentRgb); doc.rect(0, 0, W, 46, 'F');
-  text('accounTable', M, 12, { size: 12, style: 'bold', color: onAccent });
+  text('doerstab', M, 12, { size: 12, style: 'bold', color: onAccent });
   text('Progress report', M, 20, { size: 22, style: 'bold', color: onAccent });
   text(`${snapshot.name}  -  ${report.label} (${shortDate(report.start)} - ${shortDate(report.end)})`, M, 31, { size: 10.5, color: onAccent });
   text(`Generated ${new Date().toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}`, W - M, 12, { size: 8.5, color: onAccent, align: 'right' });
@@ -131,10 +131,10 @@ export async function downloadReportPdf({ report, rangeMeta, snapshot, accent = 
   const pages = doc.getNumberOfPages();
   for (let page = 1; page <= pages; page += 1) {
     doc.setPage(page);
-    text(`accounTable  -  ${snapshot.name}  -  page ${page} of ${pages}`, W / 2, 287, { size: 7.5, color: muted, align: 'center' });
+    text(`doerstab  -  ${snapshot.name}  -  page ${page} of ${pages}`, W / 2, 287, { size: 7.5, color: muted, align: 'center' });
   }
 
-  const filename = `accountable-report-${report.range}-${report.end}.pdf`;
+  const filename = `doerstab-report-${report.range}-${report.end}.pdf`;
   doc.save(filename);
   return filename;
 }

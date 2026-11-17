@@ -47,7 +47,7 @@ export default function ReminderAlarm() {
     setRinging({ slot, blocked: alarm.blocked });
     try {
       if ('Notification' in window && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
-        const note = new Notification(slot === 2 ? 'Evening check-in ⏰' : 'Time to check in ⏰', { body: 'A small step still counts. Open accounTable to check in.', tag: 'accountable-reminder', requireInteraction: true });
+        const note = new Notification(slot === 2 ? 'Evening check-in ⏰' : 'Time to check in ⏰', { body: 'A small step still counts. Open doerstab to check in.', tag: 'accountable-reminder', requireInteraction: true });
         note.onclick = () => { window.focus(); note.close(); };
       }
     } catch { /* notifications unavailable */ }

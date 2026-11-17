@@ -184,7 +184,7 @@ export default function Friends() {
     }
   };
 
-  const invite = `Join me on accounTable so we can keep each other on track. My friend code is ${friendCode}`;
+  const invite = `Join me on doerstab so we can keep each other on track. My friend code is ${friendCode}`;
   const copyCode = async () => {
     try {
       await navigator.clipboard.writeText(friendCode);
@@ -195,7 +195,7 @@ export default function Friends() {
   };
   const shareInvite = async () => {
     try {
-      if (navigator.share) await navigator.share({ title: 'Join me on accounTable', text: invite });
+      if (navigator.share) await navigator.share({ title: 'Join me on doerstab', text: invite });
       else { await navigator.clipboard.writeText(invite); notify('Invite copied — paste it anywhere'); }
     } catch (shareError) {
       if (shareError?.name !== 'AbortError') notify('Could not share the invite.');

@@ -471,3 +471,21 @@ label.consent-row { cursor: pointer; }
   .lt-hero-visual .lt-hero-phone { right: -6px; bottom: -150px; transform: scale(.5); }
   .lt-browser-url { max-width: 180px; }
 }
+
+/* ---------- How it works: auto-swipe carousel ---------- */
+.lt .lt-track { transform: translateX(calc(50% - var(--w) / 2 - var(--index) * (var(--w) + var(--gap)) + var(--drag, 0px))); }
+.lt-track.snapping, .lt-track.snapping .lt-slide, .lt-carousel.dragging .lt-track { transition: none; }
+.lt-carousel { touch-action: pan-y; cursor: grab; }
+.lt-carousel.dragging { cursor: grabbing; user-select: none; -webkit-user-select: none; }
+.lt-carousel.dragging .lt-slide { pointer-events: none; }
+.lt-tab { position: relative; overflow: hidden; }
+.lt-tab-progress { position: absolute; left: 10px; right: 10px; bottom: 4px; height: 2px; border-radius: 2px; background: color-mix(in srgb, var(--label) 70%, transparent); transform-origin: left center; transform: scaleX(0); animation: lt-tab-fill linear forwards; }
+.lt-tab-progress.paused { animation-play-state: paused; }
+@keyframes lt-tab-fill { to { transform: scaleX(1); } }
+/* Smoother, slightly slower slide for the auto-swipe */
+.lt .lt-track { transition: transform 700ms cubic-bezier(.45, .05, .25, 1); }
+.lt .lt-track .lt-slide { transition: opacity 600ms var(--ease), transform 600ms var(--ease); }
+.lt-track.snapping, .lt-track.snapping .lt-slide { transition: none !important; }
+.lt-carousel.dragging .lt-track { transition: none !important; }
+/* The copy of the last card, left of card 1: hidden unless the loop needs it, then faded out */
+.lt .lt-track .lt-slide.lt-slide-ghost { opacity: 0 !important; visibility: hidden; transition: opacity 600ms var(--ease), visibility 0s linear 600ms; }

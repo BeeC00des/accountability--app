@@ -54,9 +54,9 @@ export default function Layout() {
       {/* Desktop / tablet: sidebar — collapsible to icons only */}
       <aside className={`sidebar${collapsed ? ' collapsed' : ''}`} aria-label="Primary">
         <div className="sidebar-top">
-          <Link to="/board" className="sidebar-brand" aria-label="accounTable home" title={collapsed ? 'accounTable' : undefined}>
+          <Link to="/board" className="sidebar-brand" aria-label="doerstab home" title={collapsed ? 'doerstab' : undefined}>
             <span className="brand-mark" aria-hidden="true"><Icon name="local_fire_department" filled /></span>
-            <span className="title-medium sidebar-label">accounTable</span>
+            <span className="title-medium sidebar-label">doerstab</span>
           </Link>
           <button type="button" className="icon-btn state-layer sidebar-toggle" onClick={toggleSidebar} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar to icons'} aria-expanded={!collapsed} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
             <Icon name={collapsed ? 'left_panel_open' : 'left_panel_close'} />
@@ -93,7 +93,7 @@ export default function Layout() {
 
       <div className="app-body">
         <header className="top-bar">
-          <Link to="/board" className="top-bar-brand" aria-label="accounTable home">
+          <Link to="/board" className="top-bar-brand" aria-label="doerstab home">
             <span className="brand-mark" aria-hidden="true"><Icon name="local_fire_department" filled /></span>
           </Link>
           <span className="top-bar-spacer" />

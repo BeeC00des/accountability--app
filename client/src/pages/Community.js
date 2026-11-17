@@ -81,7 +81,7 @@ function RequestDialog({ kind, category, goals, onClose, onSent }) {
         </div>
       )}
       <TextField as="select" label="Reach me by" value={form.contact} onChange={event => set('contact', event.target.value)}>
-        <option value="in_app">accounTable inbox</option>
+        <option value="in_app">doerstab inbox</option>
         <option value="email">Email</option>
       </TextField>
     </Dialog>
@@ -170,9 +170,9 @@ function CommunityContent({ preview = false }) {
   const inviteLink = referrals.code ? `${window.location.origin}/auth?ref=${encodeURIComponent(referrals.code)}` : '';
 
   const shareInvite = async () => {
-    const text = `I’m using accounTable to imagine my future, get inspired and act. Join me: ${inviteLink}`;
+    const text = `I’m using doerstab to imagine my future, get inspired and act. Join me: ${inviteLink}`;
     try {
-      if (navigator.share) await navigator.share({ title: 'Join me on accounTable', text, url: inviteLink });
+      if (navigator.share) await navigator.share({ title: 'Join me on doerstab', text, url: inviteLink });
       else { await navigator.clipboard.writeText(inviteLink); notify('Invite link copied'); }
     } catch (shareError) {
       if (shareError?.name !== 'AbortError') notify('Could not share — copy the link instead.');

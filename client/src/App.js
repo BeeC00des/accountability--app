@@ -25,20 +25,20 @@ import Privacy from './pages/Privacy';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return <Spinner label="Loading accounTable" />;
+  if (loading) return <Spinner label="Loading doerstab" />;
   return user ? children : <Navigate to="/auth" replace />;
 };
 
 /** `/` shows the marketing landing page to visitors and sends signed-in users straight to their board. */
 const HomeRoute = () => {
   const { user, loading } = useAuth();
-  if (loading) return <Spinner label="Loading accounTable" />;
+  if (loading) return <Spinner label="Loading doerstab" />;
   return user ? <Navigate to="/board" replace /> : <Landing />;
 };
 
 const PublicRoute = ({ children }) => {
   const { user, loading } = useAuth();
-  if (loading) return <Spinner label="Loading accounTable" />;
+  if (loading) return <Spinner label="Loading doerstab" />;
   return user ? <Navigate to="/board" replace /> : children;
 };
 

@@ -948,3 +948,12 @@ html:has(.app-shell), body:has(.app-shell) { background: color-mix(in srgb, var(
 .auth-forgot:hover { text-decoration: underline; }
 .auth-done { display: grid; gap: 16px; }
 .auth-done .body-medium { padding: 12px 14px; border-radius: var(--radius-md); background: var(--fill-2); }
+
+/* Phones: long goal names and headings stay inside their cards */
+.hero { grid-template-columns: minmax(0, 1fr); }
+.hero-title, .hero-copy { max-width: min(100%, 440px); overflow-wrap: anywhere; }
+.slide-cta { max-width: 100%; min-width: 0; }
+.capital-head > div { min-width: 0; overflow-wrap: anywhere; }
+.capital-card { grid-template-columns: minmax(0, 1fr); }
+.capital-actions .code-display { min-width: 0; }
+.capital-actions .invite-link { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

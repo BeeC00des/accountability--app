@@ -28,7 +28,7 @@ const getTransport = () => {
 const sendMail = async ({ to, subject, text, html, replyTo }) => {
   if (!configured()) return { sent: false, reason: 'Email is not set up: add EMAIL_USER and EMAIL_PASS to server/.env.' };
   try {
-    await getTransport().sendMail({ from: `"accounTable" <${process.env.EMAIL_USER}>`, to, subject, text, html, replyTo });
+    await getTransport().sendMail({ from: `"doerstab" <${process.env.EMAIL_USER}>`, to, subject, text, html, replyTo });
     return { sent: true };
   } catch (error) {
     return { sent: false, reason: error.message };

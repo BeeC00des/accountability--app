@@ -42,7 +42,7 @@ function FeedbackDialog({ onClose }) {
       onSubmit={submit}
       icon="chat_bubble"
       title="Share feedback"
-      description="Ideas, problems or praise — it all helps us make accounTable better."
+      description="Ideas, problems or praise — it all helps us make doerstab better."
       onClose={onClose}
       busy={busy}
       actions={<>
@@ -58,7 +58,7 @@ function FeedbackDialog({ onClose }) {
           </button>
         ))}
       </div>
-      <TextField as="textarea" rows={4} label="Your feedback" value={form.message} onChange={event => set('message', event.target.value)} maxLength={2000} counter={`${form.message.length}/2000`} placeholder="What would make accounTable better for you?" data-autofocus />
+      <TextField as="textarea" rows={4} label="Your feedback" value={form.message} onChange={event => set('message', event.target.value)} maxLength={2000} counter={`${form.message.length}/2000`} placeholder="What would make doerstab better for you?" data-autofocus />
       <TextField label="Email (optional)" type="email" value={form.email} onChange={event => set('email', event.target.value)} autoComplete="email" help="Only if you’d like a reply." />
     </Dialog>
   );
@@ -76,7 +76,7 @@ function ConsentDialog({ onClose }) {
     <Dialog
       icon="cookie"
       title="Consent preferences"
-      description="accounTable doesn’t use ads or third-party trackers. Here’s what we store in your browser."
+      description="doerstab doesn’t use ads or third-party trackers. Here’s what we store in your browser."
       onClose={onClose}
       actions={<>
         <button type="button" className="btn btn-text state-layer" onClick={onClose}>Cancel</button>
@@ -111,14 +111,14 @@ export default function SiteFooter() {
 
   return (
     <footer className="landing-footer">
-      <Link to="/" className="landing-wordmark" aria-label="accounTable home">accoun<span>Table</span></Link>
+      <Link to="/" className="landing-wordmark" aria-label="doerstab home">doers<span>tab</span></Link>
       <p className="landing-footer-tagline">Growing is easier when someone’s cheering you on.</p>
       <nav className="landing-footer-nav landing-footer-legal" aria-label="Legal">
         <Link to="/changelog">Changelog</Link>
         <Link to="/privacy">Privacy Policy</Link>
         <button type="button" className="footer-link-btn" onClick={() => setDialog('consent')}>Consent Preferences</button>
       </nav>
-      <p className="landing-footer-copy">© {new Date().getFullYear()} accounTable</p>
+      <p className="landing-footer-copy">© {new Date().getFullYear()} doerstab</p>
 
       <div className="accent-pill" role="radiogroup" aria-label="Accent color">
         <span className="accent-pill-label" aria-hidden="true">Accent</span>

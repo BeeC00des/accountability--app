@@ -21,6 +21,7 @@ const { backfillActivities } = require('./services/activity');
 const { sendDailyReminders } = require('./services/reminderService');
 
 const app = express();
+app.disable('x-powered-by'); // don't advertise the server framework
 app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:3000', credentials: true }));
 app.use(express.json({ limit: '1mb' })); // room for a resized photo upload (profile or vision board)
 

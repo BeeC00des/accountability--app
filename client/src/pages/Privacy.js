@@ -18,7 +18,7 @@ const SECTIONS = [
     'We don’t sell your data and we don’t show ads.'
   ]],
   ['Services we rely on', [
-    'Your data is stored in our database provider (MongoDB Atlas).',
+    'Your data is stored with a secure, encrypted cloud database provider.',
     'When you add inspiration from Pinterest, our server fetches the public pin or board on your behalf. Pinterest images are shown from Pinterest’s image servers.',
     'Fonts and icons are loaded from Google Fonts, which may receive your IP address.'
   ]],
@@ -32,7 +32,7 @@ const SECTIONS = [
     'To request a copy of your data or to delete your account, send us a message through Share feedback and we’ll take care of it.'
   ]],
   ['Children', [
-    'accounTable isn’t intended for children under 13.'
+    'doerstab isn’t intended for children under 13.'
   ]]
 ];
 
