@@ -83,7 +83,7 @@ export default function Profile() {
     { icon: 'mail', label: 'Email', value: user?.email, onClick: () => setDialog('profile') },
     { icon: 'notes', label: 'Bio', value: user?.bio || 'Add a short bio', muted: !user?.bio, onClick: () => setDialog('profile') },
     { icon: 'lock', label: 'Password', value: '••••••••', onClick: () => setDialog('password') },
-    { icon: 'workspace_premium', label: 'Plan', value: user?.plan === 'premium' ? 'Premium' : user?.premiumRequestedAt ? 'Free · Premium requested' : 'Free', onClick: () => navigate('/community') }
+    { icon: 'workspace_premium', label: 'Plan', value: user?.communityAccess ? (user?.premiumUntil ? `Community · until ${new Date(user.premiumUntil).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}` : 'Community member') : user?.premiumUntil ? 'Free · membership ended' : 'Free', onClick: () => navigate('/community') }
   ];
 
   return (

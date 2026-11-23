@@ -7,6 +7,24 @@ const { requireObjectIds } = require('../utils/validate');
 const { getLocalDateKey } = require('../utils/timezone');
 const { decorateGoal } = require('../services/goalStats');
 const { ensureFriendCode } = require('../services/friendCode');
+const { sendMail, escape } = require('../services/mailer');
+
+/** Emails a friend-request notification in the background; the in-app flow never waits for it. */
+const appLink = path => `${(process.env.CLIENT_URL || 'http://localhost:3000').split(',')[0].trim().replace(/\/+$/, '')}${path}`;
+const emailFriend = ({ to, subject, heading, lead, button, path }) => {
+  if (!to?.email || to.notificationsEnabled === false) return;
+  const link = appLink(path);
+  sendMail({
+    to: to.email,
+    subject,
+    text: `Hi ${to.name},\n\n${lead}\n\n${button}: ${link}\n\n— doerstab`,
+    html: `<div style="font:15px/1.5 -apple-system,Segoe UI,sans-serif;color:#111;max-width:520px">
+      <h2 style="margin:0 0 12px">${escape(heading)}</h2>
+      <p style="margin:0 0 20px">Hi ${escape(to.name)}, ${escape(lead)}</p>
+      <p style="margin:0 0 20px"><a href="${link}" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#111;color:#fff;text-decoration:none;font-weight:600">${escape(button)}</a></p>
+      <p style="margin:0;color:#777;font-size:13px">You get these emails because notifications are on. Turn them off in your doerstab profile.</p></div>`
+  }).then(result => { if (!result.sent) console.warn(`Friend email not sent (${result.reason})`); });
+};
 
 const router = express.Router();
 router.use(protect);
@@ -130,6 +148,14 @@ router.post('/request/:userId', requireObjectIds('userId'), async (req, res) => 
 
     targetUser.friendRequests.push({ from: currentUser._id, status: 'pending' });
     await targetUser.save();
+    emailFriend({
+      to: targetUser,
+      subject: `${currentUser.name} wants to be your accountability partner`,
+      heading: 'New friend request',
+      lead: `${currentUser.name} wants to be your accountability partner on doerstab. Accept to cheer each other on and see each other's shared goals.`,
+      button: 'See the request',
+      path: '/friends?tab=requests'
+    });
     res.status(201).json({ message: 'Friend request sent.' });
   } catch (error) {
     console.error('Send friend request error:', error);
@@ -167,7 +193,17 @@ router.put('/request/:requestId', requireObjectIds('requestId'), async (req, res
     request.status = action === 'accept' ? 'accepted' : 'rejected';
     if (action === 'accept') user.friends.addToSet(senderId);
     await user.save();
-    if (action === 'accept') await User.findByIdAndUpdate(senderId, { $addToSet: { friends: user._id } });
+    if (action === 'accept') {
+      const sender = await User.findByIdAndUpdate(senderId, { $addToSet: { friends: user._id } }, { new: true }).select('name email notificationsEnabled');
+      emailFriend({
+        to: sender,
+        subject: `${user.name} accepted your friend request`,
+        heading: 'You have a new accountability partner',
+        lead: `${user.name} accepted your friend request. You can now see each other's shared goals, nudge and cheer.`,
+        button: 'Open your circle',
+        path: '/friends'
+      });
+    }
 
     res.json({ message: action === 'accept' ? 'You are now accountability partners.' : 'Friend request declined.' });
   } catch (error) {

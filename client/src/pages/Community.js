@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { API, useAuth } from '../context/AuthContext';
+import CommunityExperts from '../components/CommunityExperts';
 import { useApp } from '../context/AppContext';
 import { Dialog, EmptyState, ErrorBanner, Icon, LinearProgress, Spinner, TextField } from '../components/ui';
 import { apiError, relativeTime } from '../lib/format';
@@ -92,11 +94,26 @@ function RequestDialog({ kind, category, goals, onClose, onSent }) {
 function PremiumCard() {
   const { user, updateUser } = useAuth();
   const { notify } = useApp();
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState('');
+  const [offer, setOffer] = useState(null);
   const requested = Boolean(user?.premiumRequestedAt);
+  const expired = user?.plan === 'premium' && user?.premiumUntil && new Date(user.premiumUntil) <= new Date();
+
+  useEffect(() => { API.get('/payments/community').then(response => setOffer(response.data)).catch(() => setOffer({ available: false })); }, []);
+
+  const join = async () => {
+    setBusy('pay');
+    try {
+      const response = await API.post('/payments/community/checkout');
+      window.location.assign(response.data.checkoutUrl); // Bachs secure hosted checkout
+    } catch (payError) {
+      notify(apiError(payError, 'Could not start the payment. Try again.'));
+      setBusy('');
+    }
+  };
 
   const requestPremium = async () => {
-    setBusy(true);
+    setBusy('request');
     try {
       const response = await API.post('/auth/premium-request');
       updateUser({ premiumRequestedAt: response.data.user.premiumRequestedAt, plan: response.data.user.plan });
@@ -104,27 +121,80 @@ function PremiumCard() {
     } catch (requestError) {
       notify(apiError(requestError, 'Could not send your request. Try again.'));
     } finally {
-      setBusy(false);
+      setBusy('');
     }
   };
 
+  const price = offer?.price?.label || '₦22,000';
   return (
     <section className="premium-gate" aria-labelledby="premium-title">
       <span className="premium-gate-icon" aria-hidden="true"><Icon name="workspace_premium" filled /></span>
-      <span className="premium-tag premium-tag-lg"><Icon name="lock" />Premium</span>
-      <h1 id="premium-title" className="headline-small">Community is <span className="italic-accent">Premium.</span></h1>
-      <p className="body-medium text-variant premium-gate-copy">Request a therapist, mentor, counsellor, coach or accountability buddy, and track every request — all unlocked with Premium.</p>
-      {requested ? (
+      <span className="premium-tag premium-tag-lg"><Icon name="lock" />Private community</span>
+      <h1 id="premium-title" className="headline-small">{expired ? <>Renew your <span className="italic-accent">membership.</span></> : <>Join the <span className="italic-accent">Community.</span></>}</h1>
+      <p className="body-medium text-variant premium-gate-copy">Your own mentor, therapist and career coach. They draft the steps to your goals right on your board, follow your daily progress, and you can book sessions with each of them.</p>
+      <p className="premium-price"><strong>{price}</strong><span className="body-small text-variant"> / year</span></p>
+      {offer?.available !== false ? (
+        <>
+          <button type="button" className="btn btn-filled state-layer premium-gate-btn" onClick={join} disabled={Boolean(busy) || !offer}>
+            <Icon name="lock_open" />{busy === 'pay' ? 'Opening secure checkout…' : expired ? `Renew for ${price}` : `Join for ${price}/year`}
+          </button>
+          <p className="body-small text-variant premium-secure"><Icon name="verified_user" size="16" />Pay by card or bank transfer · secured by Bachs</p>
+        </>
+      ) : requested ? (
         <div className="premium-requested" role="status">
           <Icon name="schedule" />
-          <span><strong className="title-small">Request sent</strong><span className="body-small text-variant">We’ll turn Premium on for your account and let you know. Requested {relativeTime(user.premiumRequestedAt).toLowerCase()}.</span></span>
+          <span><strong className="title-small">Request sent</strong><span className="body-small text-variant">Online payment is coming soon. We’ll turn your access on and let you know. Requested {relativeTime(user.premiumRequestedAt).toLowerCase()}.</span></span>
         </div>
       ) : (
-        <button type="button" className="btn btn-filled state-layer premium-gate-btn" onClick={requestPremium} disabled={busy}>
-          <Icon name="workspace_premium" filled />{busy ? 'Sending…' : 'Request Premium'}
+        <button type="button" className="btn btn-filled state-layer premium-gate-btn" onClick={requestPremium} disabled={Boolean(busy)}>
+          <Icon name="workspace_premium" filled />{busy === 'request' ? 'Sending…' : 'Request access'}
         </button>
       )}
     </section>
+  );
+}
+
+/** After returning from checkout (?payment=success): confirm the payment, then unlock. */
+function PaymentReturn() {
+  const { updateUser } = useAuth();
+  const { notify } = useApp();
+  const [params, setParams] = useSearchParams();
+  const outcome = params.get('payment');
+  const checkoutId = params.get('checkout_id');
+  const [state, setState] = useState(outcome === 'success' ? 'checking' : outcome === 'cancelled' ? 'cancelled' : '');
+
+  useEffect(() => {
+    if (outcome !== 'success') return undefined;
+    let stopped = false;
+    let tries = 0;
+    const check = async () => {
+      tries += 1;
+      try {
+        const response = await API.get('/payments/community/status', { params: checkoutId ? { checkout_id: checkoutId } : {} });
+        if (stopped) return;
+        if (response.data.access) {
+          updateUser(response.data.user);
+          setState('done');
+          notify('Welcome to the Community! 🎉');
+          setParams({}, { replace: true });
+          return;
+        }
+      } catch { /* keep trying */ }
+      if (tries < 20) setTimeout(check, 3000); else if (!stopped) setState('slow');
+    };
+    check();
+    return () => { stopped = true; };
+  }, [outcome, checkoutId, updateUser, notify, setParams]);
+
+  if (!state || state === 'done') return null;
+  return (
+    <div className={`payment-banner ${state}`} role="status">
+      <Icon name={state === 'checking' ? 'hourglass_top' : state === 'cancelled' ? 'info' : 'schedule'} />
+      <span>{state === 'checking' ? 'Confirming your payment… this usually takes a few seconds.'
+        : state === 'cancelled' ? 'Payment cancelled — you haven’t been charged. You can join whenever you’re ready.'
+          : 'Your payment is still being confirmed. We’ll unlock the Community as soon as it arrives — you’ll get an email too.'}</span>
+      {state !== 'checking' && <button type="button" className="icon-btn state-layer" onClick={() => { setState(''); setParams({}, { replace: true }); }} aria-label="Dismiss"><Icon name="close" /></button>}
+    </div>
   );
 }
 
@@ -132,7 +202,7 @@ const PREVIEW_DATA = { requests: [], referrals: { count: 0, required: 3, eligibl
 
 export default function Community() {
   const { user } = useAuth();
-  return <CommunityContent preview={user?.plan !== 'premium'} />;
+  return <><PaymentReturn /><CommunityContent preview={!user?.communityAccess} /></>;
 }
 
 /** The Community page. In `preview` (free accounts) it shows the same page, locked, under the upgrade card. */
@@ -183,15 +253,17 @@ function CommunityContent({ preview = false }) {
     <>
       <header className="page-header">
         <div>
-          <h1 className="headline-medium">Stuck with your <span className="italic-accent">growth plan?</span></h1>
-          <p className="body-large text-variant">Let us know what you need. We’ll help you find the people and resources to keep going.</p>
+          <h1 className="headline-medium">Your <span className="italic-accent">Community.</span></h1>
+          <p className="body-large text-variant">Your mentor, therapist and career coach — drafting your steps, following your progress, a session away.</p>
         </div>
       </header>
 
       {error && <ErrorBanner message={error} onRetry={load} />}
 
+      {!preview && <CommunityExperts />}
+
       <section aria-labelledby="human-title">
-        <h2 id="human-title" className="section-label">Human support</h2>
+        <h2 id="human-title" className="section-label">More support</h2>
         <ul className="support-grid" role="list">
           {HUMAN.map(item => (
             <li key={item.value}>

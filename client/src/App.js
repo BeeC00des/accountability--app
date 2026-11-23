@@ -19,6 +19,7 @@ import Profile from './pages/Profile';
 import Vision from './pages/Vision';
 import Compete from './pages/Compete';
 import Community from './pages/Community';
+import Expert from './pages/Expert';
 import Landing from './pages/Landing';
 import Changelog from './pages/Changelog';
 import Privacy from './pages/Privacy';
@@ -65,6 +66,7 @@ export default function App() {
               <Route path="challenge" element={<Compete />} />
               <Route path="compete" element={<Navigate to="/challenge" replace />} />
               <Route path="community" element={<Community />} />
+              <Route path="expert" element={<Expert />} />
               <Route path="vision" element={<Navigate to="/board" replace />} />
               <Route path="profile" element={<Profile />} />
               {/* Legacy paths */}

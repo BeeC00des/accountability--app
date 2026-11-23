@@ -14,6 +14,8 @@ const leaderboardRoutes = require('./routes/leaderboard');
 const challengeRoutes = require('./routes/challenges');
 const supportRoutes = require('./routes/support');
 const reportRoutes = require('./routes/reports');
+const communityRoutes = require('./routes/experts');
+const { router: paymentRoutes, webhook: bachsWebhook } = require('./routes/payments');
 const streakRoutes = require('./routes/streaks');
 const { router: adminRoutes } = require('./routes/admin');
 const feedbackRoutes = require('./routes/feedback');
@@ -25,6 +27,8 @@ app.disable('x-powered-by'); // don't advertise the server framework
 // CLIENT_URL may list several sites, comma-separated; a trailing slash is ignored.
 const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:3000').split(',').map(url => url.trim().replace(/\/+$/, '')).filter(Boolean);
 app.use(cors({ origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins, credentials: true }));
+// Bachs webhooks are verified against the exact raw body, so this route skips the JSON parser.
+app.post('/api/payments/bachs/webhook', express.raw({ type: '*/*', limit: '1mb' }), (req, res) => (mongoose.connection.readyState === 1 ? bachsWebhook(req, res) : res.status(503).json({ message: 'Database unavailable.' })));
 app.use(express.json({ limit: '1mb' })); // room for a resized photo upload (profile or vision board)
 
 app.get('/api/health', (req, res) => {
@@ -49,6 +53,8 @@ app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/challenges', challengeRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/community', communityRoutes);
 app.use('/api/streaks', streakRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/feedback', feedbackRoutes);

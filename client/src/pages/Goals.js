@@ -73,7 +73,7 @@ function GoalSteps({ goal, onChange }) {
                     disabled={busy === todo._id}
                     onChange={() => run(todo._id, () => API.patch(`/goals/${goal._id}/todos/${todo._id}`, { done: !todo.done }), 'Could not update this step.')}
                   />
-                  <label htmlFor={`step-${todo._id}`} className="list-item-content body-medium">{todo.title}</label>
+                  <label htmlFor={`step-${todo._id}`} className="list-item-content body-medium">{todo.title}{todo.dueDate && <span className={`step-due${!todo.done && new Date(todo.dueDate) < new Date(new Date().toDateString()) ? ' overdue' : ''}`}><Icon name="event" size="14" />{formatDate(todo.dueDate, { day: 'numeric', month: 'short' })}</span>}{todo.addedByName && <span className="step-by">from {todo.addedByName}</span>}</label>
                   <button type="button" className="icon-btn state-layer step-remove" aria-label={`Remove step ${todo.title}`} disabled={busy === todo._id} onClick={() => run(todo._id, () => API.delete(`/goals/${goal._id}/todos/${todo._id}`), 'Could not remove this step.')}>
                     <Icon name="delete" size="20" />
                   </button>
@@ -99,7 +99,7 @@ function GoalCard({ goal, onCheckIn, onEdit, onToggleComplete, onDelete, onChang
   const start = new Date(goal.startDate);
   const end = goal.endDate ? new Date(goal.endDate) : null;
   const totalDays = goal.targetDays || (end ? daysBetween(start, end) : 30);
-  const elapsed = Math.min(totalDays, daysBetween(start, now) + 1);
+  const elapsed = Math.max(0, Math.min(totalDays, daysBetween(start, now) + 1));
   const timeline = Math.round((elapsed / totalDays) * 100);
 
   return (
@@ -108,10 +108,12 @@ function GoalCard({ goal, onCheckIn, onEdit, onToggleComplete, onDelete, onChang
         <span className={`tile tile-lg ${tileClass(goal)}`} aria-hidden="true">{goal.emoji || '🎯'}</span>
         <div className="goal-card-heading">
           <h3 className="title-medium">{goal.title}</h3>
+          {goal.createdByExpertName && <p className="body-small step-by goal-by"><Icon name="badge" size="16" />Drafted by {goal.createdByExpertName}</p>}
           {goal.description && <p className="body-medium text-variant clamp-2">{goal.description}</p>}
           <div className="goal-tags">
             <span className="tag"><Icon name={category.icon} />{category.label}</span>
             <span className="tag"><Icon name={goal.frequency === 'weekly' ? 'date_range' : 'today'} />{goal.frequency === 'weekly' ? 'Weekly' : 'Daily'}</span>
+            {goal.startDate && end && <span className="tag"><Icon name="event" />{formatDate(start, { day: 'numeric', month: 'short' })} – {formatDate(end, { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
             {goal.isPublic && <span className="tag tag-primary"><Icon name="group" />Shared</span>}
             {goal.streak > 0 && <span className="tag tag-warning"><Icon name="local_fire_department" filled />{plural(goal.streak, periodWord(goal))}</span>}
             {goal.isCompleted && <span className="tag tag-success"><Icon name="emoji_events" filled />Completed {formatDate(goal.completedAt, { month: 'short', day: 'numeric' })}</span>}
@@ -135,7 +137,7 @@ function GoalCard({ goal, onCheckIn, onEdit, onToggleComplete, onDelete, onChang
           <LinearProgress value={goal.completionRate} label={`${goal.title} consistency`} />
         </div>
         <div className="goal-metric">
-          <div className="goal-metric-label"><span className="body-small text-variant">Day {elapsed} of {totalDays}</span><span className="body-small text-variant">{end ? `Ends ${formatDate(end, { month: 'short', day: 'numeric' })}` : durationLabel(totalDays)}</span></div>
+          <div className="goal-metric-label"><span className="body-small text-variant">{start > now ? `Starts ${formatDate(start, { month: 'short', day: 'numeric' })}` : `Day ${elapsed} of ${totalDays}`}</span><span className="body-small text-variant">{end ? `Ends ${formatDate(end, { month: 'short', day: 'numeric' })}` : durationLabel(totalDays)}</span></div>
           <LinearProgress value={timeline} label={`${goal.title} timeline`} />
         </div>
       </div>

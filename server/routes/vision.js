@@ -1,6 +1,8 @@
 const express = require('express');
 const { body, query } = require('express-validator');
 const VisionBoard = require('../models/VisionBoard');
+const Goal = require('../models/Goal');
+const { suggestGoals } = require('../services/goalSuggestions');
 const { PERIODS, THEMES, TEXT_COLORS } = require('../models/VisionBoard');
 const { protect } = require('../middleware/auth');
 const User = require('../models/User');
@@ -57,6 +59,24 @@ router.get('/', [
   }
 });
 
+// GET /api/vision/suggestions?year=2027&period=year - Goals (with dated steps) suggested from what's on the board
+router.get('/suggestions', [
+  query('year').isInt({ min: 2020, max: 2100 }).toInt(),
+  query('period').isIn(PERIODS),
+  handleValidation
+], async (req, res) => {
+  try {
+    const [board, goals] = await Promise.all([
+      VisionBoard.findOne({ owner: req.user._id, year: req.query.year, period: req.query.period }).select('year period items.type items.text items.topic items.caption'),
+      Goal.find({ owner: req.user._id, isActive: true }).select('title')
+    ]);
+    res.json({ suggestions: board ? suggestGoals({ board, existingTitles: goals.map(goal => goal.title) }) : [] });
+  } catch (error) {
+    console.error('Goal suggestions error:', error);
+    res.status(500).json({ message: 'Could not suggest goals.' });
+  }
+});
+
 // PUT /api/vision - Create or update a board's title/theme
 router.put('/', [
   ...boardKey,
@@ -109,6 +129,7 @@ router.post('/items', [
         sourceUrl: item.source === 'pinterest' && typeof item.sourceUrl === 'string' && /^https:\/\//.test(item.sourceUrl) ? item.sourceUrl.slice(0, 500) : '',
         width: Number(item.width) || undefined,
         height: Number(item.height) || undefined,
+        topic: typeof item.topic === 'string' ? item.topic.replace(/[^\p{L}\p{N} &'-]/gu, '').trim().slice(0, 40) : '',
         caption: (item.caption || '').trim()
       };
 

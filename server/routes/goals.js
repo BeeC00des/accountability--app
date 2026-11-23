@@ -31,6 +31,18 @@ const sanitizeTodo = todo => {
 };
 const sanitizeTodos = (todos = []) => (Array.isArray(todos) ? todos.map(sanitizeTodo).filter(Boolean).slice(0, MAX_TODOS) : []);
 
+const DAY_MS = 86400000;
+/** Start/end from the request: explicit dates win; otherwise start today and run for targetDays. */
+const datesFrom = ({ startDate, endDate, targetDays }, fallbackStart = new Date()) => {
+  const start = startDate ? new Date(startDate) : new Date(fallbackStart);
+  let end = endDate ? new Date(endDate) : null;
+  if (!end) { end = new Date(start); end.setDate(end.getDate() + (Number(targetDays) || 30)); }
+  if (end <= start) return { error: 'The end date must be after the start date.' };
+  const days = Math.round((end - start) / DAY_MS);
+  if (days > 3650) return { error: 'Goals can run for up to 10 years.' };
+  return { start, end, days: Math.max(1, days) };
+};
+
 const endDateFrom = (startDate, days) => {
   const end = new Date(startDate);
   end.setDate(end.getDate() + days);
@@ -43,7 +55,9 @@ const goalFields = [
   body('description').optional().trim().isLength({ max: 500 }).withMessage('Descriptions can be up to 500 characters.'),
   body('category').optional().isIn(CATEGORIES).withMessage('Choose a valid category.'),
   body('frequency').optional().isIn(['daily', 'weekly']).withMessage('Choose daily or weekly.'),
-  body('targetDays').optional().isInt({ min: 7, max: 3650 }).withMessage('Timeframe must be between 7 days and 10 years.').toInt(),
+  body('targetDays').optional().isInt({ min: 1, max: 3650 }).withMessage('Timeframe must be between 1 day and 10 years.').toInt(),
+  body('startDate').optional({ values: 'falsy' }).isISO8601().withMessage('Pick a valid start date.'),
+  body('endDate').optional({ values: 'falsy' }).isISO8601().withMessage('Pick a valid end date.'),
   body('year').optional().isInt({ min: 2020, max: 2100 }).withMessage('Choose a year between 2020 and 2100.').toInt(),
   body('isPublic').optional().isBoolean().toBoolean(),
   body('emoji').optional().isString().isLength({ min: 1, max: 8 }).withMessage('Choose an icon.'),
@@ -90,8 +104,9 @@ router.get('/friends', async (req, res) => {
 router.post('/', [body('title').exists().withMessage('Give your goal a name.'), ...goalFields, handleValidation], async (req, res) => {
   try {
     const { title, description, category, frequency, isPublic, emoji, year } = req.body;
-    const targetDays = req.body.targetDays || 30;
-    const startDate = new Date();
+    const dates = datesFrom(req.body);
+    if (dates.error) return res.status(400).json({ message: dates.error });
+    const { start: startDate, end: endDate, days: targetDays } = dates;
 
     const goal = await Goal.create({
       owner: req.user._id,
@@ -101,7 +116,7 @@ router.post('/', [body('title').exists().withMessage('Give your goal a name.'), 
       frequency,
       targetDays,
       startDate,
-      endDate: endDateFrom(startDate, targetDays),
+      endDate,
       year: year || startDate.getFullYear(),
       isPublic: Boolean(isPublic),
       emoji: emoji || '🎯',
@@ -124,9 +139,16 @@ const updateGoal = async (req, res) => {
     ['title', 'description', 'category', 'frequency', 'year', 'isPublic', 'emoji'].forEach(field => {
       if (req.body[field] !== undefined) goal[field] = req.body[field];
     });
-    if (req.body.targetDays !== undefined) {
-      goal.targetDays = req.body.targetDays;
-      goal.endDate = endDateFrom(goal.startDate, req.body.targetDays);
+    if (req.body.startDate || req.body.endDate || req.body.targetDays !== undefined) {
+      const dates = datesFrom({
+        startDate: req.body.startDate || goal.startDate,
+        endDate: req.body.endDate || (req.body.targetDays === undefined && !req.body.startDate ? goal.endDate : undefined),
+        targetDays: req.body.targetDays ?? goal.targetDays
+      });
+      if (dates.error) return res.status(400).json({ message: dates.error });
+      goal.startDate = dates.start;
+      goal.endDate = dates.end;
+      goal.targetDays = dates.days;
     }
     if (req.body.isCompleted !== undefined) {
       goal.isCompleted = Boolean(req.body.isCompleted);

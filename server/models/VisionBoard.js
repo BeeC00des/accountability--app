@@ -12,6 +12,7 @@ const itemSchema = new mongoose.Schema({
   sourceUrl: { type: String, maxlength: 500, default: '' },
   width: Number,
   height: Number,
+  topic: { type: String, trim: true, maxlength: 40, default: '' }, // gallery search topic, e.g. Travel
   // text items
   text: { type: String, trim: true, maxlength: 120, default: '' },
   color: { type: String, enum: TEXT_COLORS, default: 'lime' },

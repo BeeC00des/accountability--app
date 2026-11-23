@@ -7,6 +7,7 @@ import { ConfirmDialog, Dialog, EmptyState, ErrorBanner, Icon, Menu, Spinner, Te
 import { apiError, plural } from '../lib/format';
 import GalleryDialog from '../components/GalleryDialog';
 import BoardStudio from '../components/BoardStudio';
+import SuggestedGoals from '../components/SuggestedGoals';
 import {
   FORMATS, PERIOD_GROUPS, THEMES, WORD_COLORS, canvasToBlob, defaultTitle, downloadBlob,
   loadBoardImages, periodOf, printBlob, rangeLabel, renderBoard, resizeUpload, wordColor
@@ -506,6 +507,8 @@ export default function Vision() {
           )}
         </section>
       )}
+
+      {board && items.length > 0 && <SuggestedGoals year={year} period={period} itemCount={items.length} />}
 
       <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp,image/*" multiple className="visually-hidden" onChange={upload} tabIndex={-1} aria-hidden="true" />
 

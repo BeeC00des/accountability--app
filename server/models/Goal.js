@@ -25,7 +25,11 @@ const todoItemSchema = new mongoose.Schema({
     type: String,
     trim: true,
     maxlength: [500, 'Todo notes cannot exceed 500 characters']
-  }
+  },
+  // Set when a Community expert added this step to the member's goal.
+  addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  addedByName: { type: String, trim: true, maxlength: 80 },
+  addedByRole: { type: String, enum: ['mentor', 'therapist', 'career_coach'] }
 }, { timestamps: true });
 
 const goalSchema = new mongoose.Schema({
@@ -103,6 +107,9 @@ const goalSchema = new mongoose.Schema({
   achievedAt: {
     type: Date
   },
+  // Set when a Community expert created this goal for the member.
+  createdByExpert: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  createdByExpertName: { type: String, trim: true, maxlength: 80 },
   emoji: {
     type: String,
     default: '🎯'

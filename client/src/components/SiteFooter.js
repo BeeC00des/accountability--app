@@ -41,13 +41,13 @@ function FeedbackDialog({ onClose }) {
       as="form"
       onSubmit={submit}
       icon="chat_bubble"
-      title="Share feedback"
-      description="Ideas, problems or praise — it all helps us make doerstab better."
+      title="Message support"
+      description="Message the support team for help or guidance about the app. It all helps us make doerstab better."
       onClose={onClose}
       busy={busy}
       actions={<>
         <button type="button" className="btn btn-text state-layer" onClick={onClose} disabled={busy}>Cancel</button>
-        <button type="submit" className="btn btn-filled state-layer" disabled={busy}><Icon name="send" />{busy ? 'Sending…' : 'Send feedback'}</button>
+        <button type="submit" className="btn btn-filled state-layer" disabled={busy}><Icon name="send" />{busy ? 'Sending…' : 'Send message'}</button>
       </>}
     >
       {error && <p className="inline-error" role="alert"><Icon name="error" />{error}</p>}
@@ -58,7 +58,7 @@ function FeedbackDialog({ onClose }) {
           </button>
         ))}
       </div>
-      <TextField as="textarea" rows={4} label="Your feedback" value={form.message} onChange={event => set('message', event.target.value)} maxLength={2000} counter={`${form.message.length}/2000`} placeholder="What would make doerstab better for you?" data-autofocus />
+      <TextField as="textarea" rows={4} label="Your message" value={form.message} onChange={event => set('message', event.target.value)} maxLength={2000} counter={`${form.message.length}/2000`} placeholder="How can we help? Ask a question or tell us what would make doerstab better." data-autofocus />
       <TextField label="Email (optional)" type="email" value={form.email} onChange={event => set('email', event.target.value)} autoComplete="email" help="Only if you’d like a reply." />
     </Dialog>
   );
@@ -138,7 +138,7 @@ export default function SiteFooter() {
       </div>
 
       <button type="button" className="feedback-fab state-layer" onClick={() => setDialog('feedback')}>
-        <Icon name="chat_bubble" />Share feedback
+        <Icon name="support_agent" />Message support
       </button>
 
       {dialog === 'feedback' && <FeedbackDialog onClose={() => setDialog(null)} />}

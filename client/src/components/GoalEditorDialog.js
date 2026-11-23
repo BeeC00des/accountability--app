@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { API } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { Dialog, Icon, LinearProgress, Switch, TextField } from './ui';
@@ -12,7 +12,13 @@ const STEPS = [
 ];
 
 const thisYear = () => new Date().getFullYear();
+const toInput = date => { const d = new Date(date); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const addDays = (input, days) => { const d = new Date(`${input}T00:00:00`); d.setDate(d.getDate() + Number(days)); return toInput(d); };
+const daysApart = (from, to) => Math.round((new Date(`${to}T00:00:00`) - new Date(`${from}T00:00:00`)) / 86400000);
+
 const fromGoal = goal => ({
+  startDate: goal?.startDate ? toInput(goal.startDate) : toInput(new Date()),
+  endDate: goal?.endDate ? toInput(goal.endDate) : addDays(toInput(new Date()), goal?.targetDays || 30),
   title: goal?.title || '',
   description: goal?.description || '',
   emoji: goal?.emoji || '🎯',
@@ -40,11 +46,8 @@ export default function GoalEditorDialog({ goal, initial, onClose, onSaved }) {
 
   const set = (key, value) => setForm(current => ({ ...current, [key]: value }));
   const titleError = touched && !form.title.trim() ? 'Give your goal a name.' : '';
-  const endDate = useMemo(() => {
-    const start = goal?.startDate ? new Date(goal.startDate) : new Date();
-    start.setDate(start.getDate() + Number(form.targetDays));
-    return start;
-  }, [goal, form.targetDays]);
+  const span = daysApart(form.startDate, form.endDate);
+  const dateError = !form.startDate || !form.endDate ? 'Pick a start and end date.' : span < 1 ? 'The end date must be after the start date.' : '';
 
   const addTodo = () => {
     const title = todoDraft.trim();
@@ -62,6 +65,7 @@ export default function GoalEditorDialog({ goal, initial, onClose, onSaved }) {
   const save = async event => {
     event?.preventDefault();
     if (!form.title.trim()) { setTouched(true); setStep(0); return; }
+    if (dateError && (isEdit || step === STEPS.length - 1)) { setError(dateError); setStep(1); return; }
     if (!isEdit && step < STEPS.length - 1) { next(); return; }
     setSaving(true);
     setError('');
@@ -71,7 +75,8 @@ export default function GoalEditorDialog({ goal, initial, onClose, onSaved }) {
       emoji: form.emoji,
       category: form.category,
       frequency: form.frequency,
-      targetDays: Number(form.targetDays),
+      startDate: new Date(`${form.startDate}T00:00:00`).toISOString(),
+      endDate: new Date(`${form.endDate}T00:00:00`).toISOString(),
       year: Number(form.year),
       isPublic: form.isPublic
     };
@@ -174,18 +179,15 @@ export default function GoalEditorDialog({ goal, initial, onClose, onSaved }) {
             <legend className="title-small fieldset-legend">Timeframe</legend>
             <div className="chip-set">
               {DURATIONS.map(duration => (
-                <button key={duration.value} type="button" className={`chip state-layer${Number(form.targetDays) === duration.value ? ' selected' : ''}`} aria-pressed={Number(form.targetDays) === duration.value} onClick={() => set('targetDays', duration.value)}>
-                  {Number(form.targetDays) === duration.value && <Icon name="check" />}{duration.label}
+                <button key={duration.value} type="button" className={`chip state-layer${span === duration.value ? ' selected' : ''}`} aria-pressed={span === duration.value} onClick={() => setForm(current => ({ ...current, targetDays: duration.value, endDate: addDays(current.startDate, duration.value) }))}>
+                  {span === duration.value && <Icon name="check" />}{duration.label}
                 </button>
               ))}
             </div>
           </fieldset>
           <div className="field-row">
-            <TextField label="Year" type="number" min="2020" max="2100" value={form.year} onChange={event => set('year', event.target.value)} />
-            <div className="summary-tile">
-              <Icon name="event" />
-              <div><span className="body-small text-variant">Target end date · {durationLabel(form.targetDays)}</span><strong className="title-small">{formatDate(endDate)}</strong></div>
-            </div>
+            <TextField label="Start date" type="date" value={form.startDate} onChange={event => { const value = event.target.value; setForm(current => ({ ...current, startDate: value, endDate: value && current.endDate <= value ? addDays(value, current.targetDays || 30) : current.endDate, year: value ? Number(value.slice(0, 4)) : current.year })); }} />
+            <TextField label="End date" type="date" value={form.endDate} min={form.startDate ? addDays(form.startDate, 1) : undefined} onChange={event => set('endDate', event.target.value)} error={dateError || undefined} help={!dateError && span > 0 ? `${durationLabel(span)} · ends ${formatDate(new Date(`${form.endDate}T00:00:00`))}` : undefined} />
           </div>
         </div>
       )}

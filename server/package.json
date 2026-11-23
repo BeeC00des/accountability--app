@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "premium": "node scripts/premium.js"
+    "premium": "node scripts/premium.js",
+    "expert": "node scripts/expert.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

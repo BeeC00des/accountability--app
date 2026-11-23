@@ -7,6 +7,8 @@ import { Avatar, Icon, Menu } from './ui';
 import AccentDialog from './AccentDialog';
 import ReminderAlarm from './ReminderAlarm';
 import StreakDialog from './StreakDialog';
+import FeedbackPopup from './FeedbackPopup';
+import InstallPrompt from './InstallPrompt';
 import { savePreference } from '../lib/consent';
 
 // Board is the home page. `tab` marks the items shown in the phone tab bar (Inbox lives in the top bar).
@@ -31,7 +33,8 @@ export default function Layout() {
   const [accentOpen, setAccentOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const isPremium = user?.plan === 'premium';
+  const isPremium = Boolean(user?.communityAccess);
+  const nav = user?.role === 'expert' || user?.role === 'admin' ? [...NAV, { to: '/expert', label: 'Expert', icon: 'badge' }] : NAV;
 
   // Move focus to the page on navigation so screen readers announce the new view.
   useEffect(() => { document.getElementById('main-content')?.focus({ preventScroll: true }); window.scrollTo(0, 0); }, [location.pathname]);
@@ -66,7 +69,7 @@ export default function Layout() {
           <Icon name="add" /><span className="sidebar-label">Add vision board</span>
         </button>
         <nav className="sidebar-nav">
-          {NAV.map(({ to, label, icon, premium }) => (
+          {nav.map(({ to, label, icon, premium }) => (
             <NavLink key={to} to={to} className={({ isActive }) => `sidebar-item state-layer${isActive ? ' active' : ''}`} aria-label={collapsed ? (to === '/inbox' && unread > 0 ? `${label}, ${unread} unread` : label) : undefined} title={collapsed ? label : undefined}>
               {({ isActive }) => (
                 <>
@@ -128,6 +131,7 @@ export default function Layout() {
                   )
                 },
                 { divider: true },
+                (user?.role === 'expert' || user?.role === 'admin') && { label: 'Expert dashboard', icon: 'badge', onSelect: () => navigate('/expert') },
                 { label: 'View profile', icon: 'person', onSelect: () => navigate('/profile') },
                 { label: 'Edit profile', icon: 'edit', onSelect: () => navigate('/profile?edit=1') },
                 { label: 'Reminder settings', icon: 'schedule', onSelect: () => navigate('/profile#settings') },
@@ -158,6 +162,8 @@ export default function Layout() {
       {accentOpen && <AccentDialog onClose={() => setAccentOpen(false)} />}
       <ReminderAlarm />
       {streakOpen && <StreakDialog onClose={() => setStreakOpen(false)} />}
+      <FeedbackPopup />
+      <InstallPrompt />
     </div>
   );
 }

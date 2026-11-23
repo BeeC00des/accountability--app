@@ -38,7 +38,7 @@ export default function GalleryDialog({ onClose, onAddMany }) {
       const response = source.type === 'search'
         ? await API.get('/vision/search', { params: { q: source.value } })
         : await API.get('/vision/gallery', { params: { source: source.value } });
-      setPins(response.data.pins.map(pin => ({ ...pin, key: pin.id || pin.pinUrl, source: source.type === 'search' ? 'openverse' : 'pinterest' })));
+      setPins(response.data.pins.map(pin => ({ ...pin, key: pin.id || pin.pinUrl, source: source.type === 'search' ? 'openverse' : 'pinterest', topic: source.type === 'search' ? (source.label || source.value) : '' })));
     } catch (loadError) {
       setError(apiError(loadError, 'Could not load images. Try again.'));
     } finally {
@@ -65,7 +65,7 @@ export default function GalleryDialog({ onClose, onAddMany }) {
   const addSelected = async () => {
     setAdding(true);
     const added = await onAddMany([...selected.values()].map(pin => (pin.source === 'openverse'
-      ? { type: 'image', source: 'openverse', imageUrl: pin.imageUrl, width: pin.width, height: pin.height }
+      ? { type: 'image', source: 'openverse', imageUrl: pin.imageUrl, width: pin.width, height: pin.height, topic: pin.topic }
       : { type: 'image', source: 'pinterest', imageUrl: pin.imageUrl, sourceUrl: pin.pinUrl })));
     setAdding(false);
     if (added > 0) onClose();

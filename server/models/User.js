@@ -108,6 +108,31 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  // Paid Community membership: access lasts until this date (null = no expiry, e.g. granted by the owner).
+  premiumUntil: {
+    type: Date,
+    default: null
+  },
+  // member (default) | expert (mentor, therapist, career coach) | admin
+  role: {
+    type: String,
+    enum: ['member', 'expert', 'admin'],
+    default: 'member'
+  },
+  expertProfile: {
+    title: { type: String, trim: true, maxlength: 80, default: '' },
+    categories: [{ type: String, enum: ['mentor', 'therapist', 'career_coach'] }],
+    bio: { type: String, trim: true, maxlength: 600, default: '' },
+    meetingLink: { type: String, trim: true, maxlength: 300, default: '' },
+    slotMinutes: { type: Number, enum: [30, 45, 60], default: 30 },
+    // Weekly availability in the expert's own timezone: day 0 = Sunday … 6 = Saturday.
+    availability: [{
+      day: { type: Number, min: 0, max: 6, required: true },
+      start: { type: String, match: /^\d{2}:\d{2}$/, required: true },
+      end: { type: String, match: /^\d{2}:\d{2}$/, required: true },
+      _id: false
+    }]
+  },
   // The year the streak counter is showing (X/365). When a new year starts, the user flips it over.
   streakYear: {
     type: Number,
@@ -135,6 +160,12 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
+/** Community access: premium plan and (if set) not yet expired. */
+userSchema.methods.hasCommunityAccess = function() {
+  if (this.role === 'expert' || this.role === 'admin') return true;
+  return this.plan === 'premium' && (!this.premiumUntil || this.premiumUntil > new Date());
+};
+
 // Remove sensitive fields from JSON output
 userSchema.methods.toJSON = function() {
   const obj = this.toObject();
@@ -142,6 +173,7 @@ userSchema.methods.toJSON = function() {
   delete obj.passwordResetToken;
   delete obj.passwordResetExpires;
   delete obj.passwordResetRequestedAt;
+  obj.communityAccess = this.hasCommunityAccess();
   return obj;
 };
 
