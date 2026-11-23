@@ -14,7 +14,7 @@ const router = express.Router();
 router.use(protect, requirePremium); // Community is Premium-only
 
 // Capital support (sponsored subscriptions) is reserved for people who've grown the community.
-const REFERRALS_REQUIRED = Number(process.env.SPONSORSHIP_REFERRALS_REQUIRED) || 3;
+const REFERRALS_REQUIRED = Number(process.env.SPONSORSHIP_REFERRALS_REQUIRED) || 5;
 const MAX_OPEN_REQUESTS = 5;
 
 const referralStats = async user => {

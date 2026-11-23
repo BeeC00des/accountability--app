@@ -198,7 +198,7 @@ function PaymentReturn() {
   );
 }
 
-const PREVIEW_DATA = { requests: [], referrals: { count: 0, required: 3, eligible: false, code: null } };
+const PREVIEW_DATA = { requests: [], referrals: { count: 0, required: 5, eligible: false, code: null } };
 
 export default function Community() {
   const { user } = useAuth();
@@ -236,7 +236,7 @@ function CommunityContent({ preview = false }) {
   };
 
   if (!data && !error) return <Spinner label="Loading community" />;
-  const referrals = data?.referrals || { count: 0, required: 3, eligible: false, code: null };
+  const referrals = data?.referrals || { count: 0, required: 5, eligible: false, code: null };
   const inviteLink = referrals.code ? `${window.location.origin}/auth?ref=${encodeURIComponent(referrals.code)}` : '';
 
   const shareInvite = async () => {
