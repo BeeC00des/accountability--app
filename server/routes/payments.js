@@ -134,4 +134,28 @@ router.get('/community/status', [query('checkout_id').optional().isString().isLe
   }
 });
 
-module.exports = { router, webhook, fulfil };
+/**
+ * Safety net: every few minutes, ask Bachs about recent pending checkouts and fulfil the paid ones,
+ * so access is granted even if the webhook isn't set up or the member never returns to the site.
+ */
+const reconcilePending = async () => {
+  if (!bachs.configured()) return;
+  const since = new Date(Date.now() - 48 * 60 * 60 * 1000);
+  const pending = await Payment.find({ status: 'pending', checkoutId: { $exists: true, $ne: null }, createdAt: { $gte: since } }).limit(25);
+  for (const payment of pending) {
+    // eslint-disable-next-line no-await-in-loop
+    const session = await bachs.getCheckout(payment.checkoutId).catch(error => { console.warn(`Bachs lookup failed for ${payment.checkoutId}: ${error.status || ''} ${error.message}`); return null; });
+    if (!session) continue;
+    if (bachs.isPaidCheckout(session)) {
+      // eslint-disable-next-line no-await-in-loop
+      if (await fulfil(payment, { chargeId: session.charge?.id || session.charge })) console.log(`Payment ${payment._id} confirmed with Bachs; Community access granted.`);
+    } else if (['expired', 'cancelled', 'canceled', 'failed'].includes(String(session.status).toLowerCase())) {
+      // eslint-disable-next-line no-await-in-loop
+      await Payment.updateOne({ _id: payment._id, status: 'pending' }, { status: String(session.status).toLowerCase() === 'expired' ? 'expired' : 'failed' });
+    } else {
+      console.log(`Payment ${payment._id} still waiting at Bachs (status=${session.status}, payment_status=${session.payment_status || '—'})`);
+    }
+  }
+};
+
+module.exports = { router, webhook, fulfil, reconcilePending };

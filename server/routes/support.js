@@ -8,6 +8,7 @@ const { protect } = require('../middleware/auth');
 const { requirePremium } = require('../middleware/premium');
 const { handleValidation, isObjectId, requireObjectIds } = require('../utils/validate');
 const { ensureFriendCode } = require('../services/friendCode');
+const { SUPPORT_EMAIL, sendMail, escape } = require('../services/mailer');
 
 const router = express.Router();
 router.use(protect, requirePremium); // Community is Premium-only
@@ -60,6 +61,18 @@ router.post('/', [
 
     const request = await SupportRequest.create({ user: req.user._id, kind, category, message, goal: goalId || undefined, format, urgency, contact });
     await request.populate('goal', 'title emoji');
+    const label = `${kind === 'capital' ? 'Sponsored subscription' : category.replace('_', ' ')}`;
+    sendMail({
+      to: SUPPORT_EMAIL,
+      replyTo: req.user.email,
+      subject: `Support request · ${label} · ${req.user.name}`,
+      text: `${req.user.name} (${req.user.email}) asked for: ${label}\nUrgency: ${urgency || 'normal'} · Format: ${format || 'either'} · Contact: ${contact || 'in_app'}${request.goal ? `\nGoal: ${request.goal.title}` : ''}\n\n${message}\n\nReply to this email to contact them.`,
+      html: `<div style="font:15px/1.5 -apple-system,Segoe UI,sans-serif;color:#111;max-width:560px"><p style="margin:0 0 6px;color:#777;font-size:13px">Community support request</p>
+        <h2 style="margin:0 0 6px;font-size:18px">${escape(req.user.name)} · ${escape(label)}</h2>
+        <p style="margin:0 0 14px;color:#555;font-size:14px">${escape(req.user.email)} · urgency ${escape(urgency || 'normal')} · ${escape(format || 'either')} · contact ${escape(contact || 'in_app')}${request.goal ? ` · goal “${escape(request.goal.title)}”` : ''}</p>
+        <p style="margin:0 0 18px;white-space:pre-wrap">${escape(message)}</p>
+        <p style="margin:0;color:#777;font-size:13px">Reply to this email to contact them.</p></div>`
+    }).then(result => { if (!result.sent) console.warn(`Support email not sent (${result.reason})`); });
     res.status(201).json({ message: 'Request sent. Our team will reach out soon.', request });
   } catch (error) {
     console.error('Create support error:', error);

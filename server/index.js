@@ -15,7 +15,7 @@ const challengeRoutes = require('./routes/challenges');
 const supportRoutes = require('./routes/support');
 const reportRoutes = require('./routes/reports');
 const communityRoutes = require('./routes/experts');
-const { router: paymentRoutes, webhook: bachsWebhook } = require('./routes/payments');
+const { router: paymentRoutes, webhook: bachsWebhook, reconcilePending } = require('./routes/payments');
 const streakRoutes = require('./routes/streaks');
 const { router: adminRoutes } = require('./routes/admin');
 const feedbackRoutes = require('./routes/feedback');
@@ -103,6 +103,10 @@ connectToDatabase();
 // Evaluate users' configured local reminder time once per minute (only while the DB is connected).
 cron.schedule('* * * * *', async () => {
   if (mongoose.connection.readyState === 1) await sendDailyReminders();
+});
+// Confirm paid Community checkouts with Bachs every 2 minutes (backup for the webhook).
+cron.schedule('*/2 * * * *', async () => {
+  if (mongoose.connection.readyState === 1) await reconcilePending().catch(error => console.error('Payment reconcile error:', error.message));
 });
 
 const PORT = process.env.PORT || 5000;

@@ -2,6 +2,8 @@ const nodemailer = require('nodemailer');
 
 // Where Premium requests are sent. Override with ADMIN_EMAIL in server/.env.
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'ajayibcd@gmail.com';
+// Feedback and support messages go here (defaults to the admin address).
+const SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || ADMIN_EMAIL;
 
 const configured = () => Boolean(process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASS
   && !/your_|example/i.test(`${process.env.EMAIL_USER}${process.env.EMAIL_PASS}`));
@@ -37,4 +39,4 @@ const sendMail = async ({ to, subject, text, html, replyTo }) => {
 
 const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
-module.exports = { ADMIN_EMAIL, sendMail, escape, emailConfigured: configured };
+module.exports = { ADMIN_EMAIL, SUPPORT_EMAIL, sendMail, escape, emailConfigured: configured };

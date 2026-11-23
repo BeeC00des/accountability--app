@@ -53,8 +53,8 @@ const getCheckout = checkoutId => request('GET', `/v1/checkout-sessions/${encode
 
 /** True if a checkout session object says it was paid (field names vary by event/version, so be tolerant). */
 const isPaidCheckout = session => {
-  const values = [session?.status, session?.payment_status, session?.data?.status, session?.collection?.status].filter(Boolean).map(value => String(value).toLowerCase());
-  return values.some(value => ['completed', 'complete', 'paid', 'succeeded', 'success'].includes(value));
+  const values = [session?.status, session?.payment_status, session?.data?.status, session?.collection?.status, session?.charge?.status].filter(Boolean).map(value => String(value).toLowerCase());
+  return values.some(value => ['completed', 'complete', 'paid', 'succeeded', 'success', 'successful', 'settled', 'captured'].includes(value));
 };
 
 const safeEqual = (a, b) => {
