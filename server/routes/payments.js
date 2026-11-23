@@ -12,6 +12,8 @@ const PRICE_NGN = String(process.env.COMMUNITY_PRICE_NGN || '22000');
 const AMOUNT = `${Number(PRICE_NGN).toFixed(2)}`; // "22000.00"
 const YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 const siteUrl = path => `${(process.env.CLIENT_URL || 'http://localhost:3000').split(',')[0].trim().replace(/\/+$/, '')}${path}`;
+// Bachs only returns customers to a public address, so local testing can point this at the live site.
+const returnUrl = path => (process.env.PUBLIC_SITE_URL ? `${process.env.PUBLIC_SITE_URL.trim().replace(/\/+$/, '')}${path}` : siteUrl(path));
 
 /** Marks a payment paid (once) and gives the member a year of Community access, extending any time left. */
 const fulfil = async (payment, { chargeId } = {}) => {
@@ -87,14 +89,15 @@ router.get('/community', async (req, res) => {
 // POST /api/payments/community/checkout - Start a Bachs hosted checkout and return its URL
 router.post('/community/checkout', async (req, res) => {
   if (!bachs.configured()) return res.status(503).json({ message: 'Payments aren’t set up yet. Please try again later.' });
+  let payment;
   try {
-    const payment = await Payment.create({ user: req.user._id, amount: AMOUNT, currency: 'NGN' });
+    payment = await Payment.create({ user: req.user._id, amount: AMOUNT, currency: 'NGN' });
     const session = await bachs.createCheckout({
       amount: AMOUNT,
       currency: 'NGN',
       customer: { email: req.user.email, name: req.user.name },
-      successUrl: siteUrl('/community?payment=success'),
-      cancelUrl: siteUrl('/community?payment=cancelled'),
+      successUrl: returnUrl('/community?payment=success'),
+      cancelUrl: returnUrl('/community?payment=cancelled'),
       metadata: { payment_id: String(payment._id), user_id: String(req.user._id), product: 'community_annual' },
       reference: String(payment._id),
       idempotencyKey: `community-${payment._id}`
@@ -106,7 +109,9 @@ router.post('/community/checkout', async (req, res) => {
     res.status(201).json({ checkoutUrl: url, checkoutId });
   } catch (error) {
     console.error('Create checkout error:', error.message, error.details || '');
-    res.status(502).json({ message: 'Could not start the payment. Please try again.' });
+    if (payment) await Payment.updateOne({ _id: payment._id, status: 'pending' }, { status: 'failed' }).catch(() => {});
+    const localhost = /localhost is not allowed/i.test(JSON.stringify(error.details || ''));
+    res.status(502).json({ message: localhost ? 'Payments can’t return to a local address. Set PUBLIC_SITE_URL to your live site, or test on the live site.' : 'Could not start the payment. Please try again.' });
   }
 });
 
